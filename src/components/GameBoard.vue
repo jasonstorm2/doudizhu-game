@@ -3,34 +3,40 @@
     <h2>跑得快</h2>
     <p>游戏信息: {{ gameInfo }}</p>
     <start-screen v-if="gameState === 'START'" @start-game="startGame" />
-    <template v-else>
-      <div class="players-container">
-        <div class="player player-left">
-          <player-hand 
-            :cards="players[2].cards" 
-            :isCurrentPlayer="currentPlayer === 2"
-            @select-card="selectCard(2, $event)"
-          />
+    <template v-else-if="gameState === 'PLAYING'">
+      <div class="game-area">
+        <div class="players-container">
+          <div class="player player-1">
+            <player-hand 
+              :cards="players[1].cards" 
+              :isCurrentPlayer="currentPlayer === 1"
+              @select-card="(cardIndex) => handleSelectCard(1, cardIndex)"
+            />
+            <button @click="handlePlayCards(1)" :disabled="currentPlayer !== 1">出牌</button>
+          </div>
+          <div class="player player-2">
+            <player-hand 
+              :cards="players[2].cards" 
+              :isCurrentPlayer="currentPlayer === 2"
+              @select-card="(cardIndex) => handleSelectCard(2, cardIndex)"
+            />
+            <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">出牌</button>
+          </div>
         </div>
-        <div class="player player-right">
-          <player-hand 
-            :cards="players[1].cards" 
-            :isCurrentPlayer="currentPlayer === 1"
-            @select-card="selectCard(1, $event)"
-          />
+        
+        <div class="played-cards-area">
+          <played-cards :cards="playedCards" />
         </div>
-        <div class="player player-bottom">
+        
+        <div class="player player-0">
           <player-hand 
             :cards="players[0].cards" 
             :isCurrentPlayer="currentPlayer === 0"
-            @select-card="selectCard(0, $event)"
+            @select-card="(cardIndex) => handleSelectCard(0, cardIndex)"
           />
+          <button @click="handlePlayCards(0)" :disabled="currentPlayer !== 0">出牌</button>
         </div>
       </div>
-      <div class="played-cards-area">
-        <played-cards :cards="playedCards" />
-      </div>
-      <button @click="playCards" :disabled="!canPlay">出牌</button>
     </template>
     <victory-screen 
       v-if="gameState === 'END'" 
@@ -38,10 +44,14 @@
       @restart="restartGame" 
     />
   </div>
+  <div class="played-cards-area">
+    <played-cards :cards="playedCards" />
+  </div>
 </template>
 
 <script>
-import { mapState, mapActions } from 'vuex';
+import { computed } from 'vue';
+import { useStore } from 'vuex';
 import StartScreen from './StartScreen.vue';
 import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
@@ -49,30 +59,54 @@ import VictoryScreen from './VictoryScreen.vue';
 
 export default {
   name: 'GameBoard',
+  
   components: {
     StartScreen,
     PlayerHand,
     PlayedCards,
     VictoryScreen
   },
-  computed: {
-    ...mapState(['gameState', 'players', 'currentPlayer', 'playedCards', 'winner']),
-    canPlay() {
-      return this.players[this.currentPlayer].selectedCards.length > 0;
-    },
-    gameInfo() {
-      return `当前游戏状态: ${this.gameState}, 当前玩家: ${this.currentPlayer + 1}`;
-    }
+  setup() {
+    const store = useStore();
+
+    const gameState = computed(() => store.state.gameState);
+    const players = computed(() => store.state.players);
+    const currentPlayer = computed(() => store.state.currentPlayer);
+    const playedCards = computed(() => store.state.playedCards);
+    
+
+
+    const winner = computed(() => store.state.winner);
+
+    const gameInfo = computed(() => 
+      `当前游戏状态: ${gameState.value}, 当前玩家: ${currentPlayer.value + 1}`
+    );
+
+    const startGame = () => store.dispatch('startGame');
+    const restartGame = () => store.dispatch('restartGame');
+    const handleSelectCard = (playerIndex, cardIndex) => 
+      store.dispatch('selectCard', { playerIndex, cardIndex });
+    const handlePlayCards = (playerIndex) => 
+      store.dispatch('playCards', playerIndex);
+
+    return {
+      gameState,
+      players,
+      currentPlayer,
+      playedCards,
+      winner,
+      gameInfo,
+      startGame,
+      restartGame,
+      handleSelectCard,
+      handlePlayCards
+    };
   },
-  methods: {
-    ...mapActions(['startGame', 'playCards', 'restartGame']),
-    selectCard(playerIndex, cardIndex) {
-      this.$store.dispatch('selectCard', { playerIndex, cardIndex });
-    }
-  }
-}
+
+
+
+};
 </script>
-  
 
 <style scoped>
 .game-board {
@@ -84,33 +118,43 @@ export default {
   padding: 20px;
 }
 
-.players-container {
-  position: relative;
+.game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 100%;
-  height: 70vh;
+  height: 80vh;
+}
+
+.players-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .player {
-  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.player-left {
-  top: 20px;
-  left: 20px;
-}
-
-.player-right {
-  top: 20px;
-  right: 20px;
-}
-
-.player-bottom {
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+.player-0 {
+  margin-top: 20px;
 }
 
 .played-cards-area {
-  margin-top: 20px;
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100px;
+  border: 1px dashed #ccc;
+  margin: 20px 0;
+}
+
+button {
+  margin-top: 10px;
 }
 </style>

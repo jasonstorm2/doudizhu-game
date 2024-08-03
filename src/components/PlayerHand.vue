@@ -1,13 +1,18 @@
 <template>
   <div class="player-hand" :class="{ 'current-player': isCurrentPlayer }">
-    <div 
-      v-for="(card, index) in sortedCards" 
-      :key="index" 
-      class="card" 
-      :class="{ 'selected': card.selected }"
-      @click="selectCard(index)"
-    >
-      {{ card.suit }}{{ card.value }}
+    <h3>{{ isCurrentPlayer ? '当前玩家' : '玩家' }}</h3>
+    <div class="cards-container">
+      <div 
+        v-for="(card, index) in cards" 
+        :key="`${card.suit}-${card.value}`"
+        class="card" 
+        :class="{ 'selected': card.selected }"
+        @click="selectCard(index)"
+      >
+        <span :class="{'red': card.suit === '♥' || card.suit === '♦'}">
+          {{ cardDisplay(card) }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -15,53 +20,67 @@
 <script>
 export default {
   name: 'PlayerHand',
-  props: ['cards', 'isCurrentPlayer'],
-  computed: {
-    sortedCards() {
-      const order = ['Joker', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
-      return [...this.cards].sort((a, b) => {
-        if (a.suit === 'Joker' && b.suit === 'Joker') {
-          return a.value === 'Big' ? -1 : 1;
-        }
-        return order.indexOf(a.value) - order.indexOf(b.value);
-      });
+  props: {
+    cards: {
+      type: Array,
+      required: true
+    },
+    isCurrentPlayer: {
+      type: Boolean,
+      default: false
     }
   },
   methods: {
     selectCard(index) {
-      if (this.isCurrentPlayer) {
-        this.$emit('select-card', index);
+      this.$emit('select-card', index);
+    },
+    cardDisplay(card) {
+      if (card.suit === 'Joker') {
+        return card.value === 'Small' ? '小王' : '大王';
       }
+      return `${card.suit}${card.value}`;
     }
   }
 }
 </script>
 
 <style scoped>
+
 .player-hand {
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+.current-player {
+  background-color: #e6f7ff;
+}
+
+.cards-container {
   display: flex;
   flex-wrap: wrap;
-  width: 200px;
+  gap: 2px;
 }
 
 .card {
-  width: 40px;
-  height: 60px;
-  border: 1px solid black;
-  margin: 2px;
+  width: 30px;  /* 从 40px 减小到 30px */
+  height: 45px; /* 从 60px 减小到 45px */
+  border: 1px solid #000;
+  border-radius: 2px;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   cursor: pointer;
-  transition: transform 0.2s;
-  font-size: 12px;
+  background-color: white;
+  font-size: 12px; /* 添加字体大小设置 */
 }
 
 .card.selected {
-  transform: translateY(-10px);
+  background-color: #b3d9ff;
 }
 
-.current-player .card:hover {
-  background-color: #f0f0f0;
+.red {
+  color: red;
 }
 </style>

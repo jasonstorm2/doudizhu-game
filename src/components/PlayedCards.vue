@@ -1,32 +1,52 @@
 <template>
-    <div class="played-cards">
-      <div v-for="(card, index) in cards" :key="index" class="card">
-        {{ card.value }}
-      </div>
+  <div class="played-cards">
+    <div v-for="(card, index) in cards" :key="index" class="card">
+      <span :class="{'red': card.suit === '♥' || card.suit === '♦'}">
+        {{ cardDisplay(card) }}
+      </span>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    name: 'PlayedCards',
-    props: ['cards']
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'PlayedCards',
+  props: {
+    cards: {
+      type: Array,
+      required: true
+    }
+  },
+  methods: {
+    cardDisplay(card) {
+      if (card.suit === 'Joker') {
+        return card.value === 'Small' ? '小王' : '大王';
+      }
+      return `${card.suit}${card.value}`;
+    }
   }
-  </script>
-  
-  <style scoped>
-  .played-cards {
-    display: flex;
-    justify-content: center;
-    margin: 20px 0;
-  }
-  
-  .card {
-    width: 40px;
-    height: 60px;
-    border: 1px solid black;
-    margin: 0 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  </style>
+}
+</script>
+
+<style scoped>
+.played-cards {
+  display: flex;
+  gap: 5px;
+}
+
+.card {
+  width: 30px;
+  height: 45px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: white;
+  font-size: 12px;
+}
+
+.red {
+  color: red;
+}
+</style>

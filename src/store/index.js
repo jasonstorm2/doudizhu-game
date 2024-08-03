@@ -1,98 +1,113 @@
-import { createStore } from 'vuex'
-import gameApi from '../api/gameApi'
+import { createStore } from 'vuex';
 
+// 辅助函数
+function createDeck() {
+  const suits = ['♠', '♥', '♣', '♦'];
+  const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+  let deck = suits.flatMap(suit => values.map(value => ({ suit, value, selected: false })));
+  deck.push({ suit: 'Joker', value: 'Small', selected: false });
+  deck.push({ suit: 'Joker', value: 'Big', selected: false });
+  return deck;
+}
+
+function shuffleDeck(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
 
 export default createStore({
-  state() {
-    return {
-      gameState: 'START',
-      players: [
-        { cards: [], selectedCards: [] },
-        { cards: [], selectedCards: [] },
-        { cards: [], selectedCards: [] }
-      ],
-      currentPlayer: 0,
-      playedCards: [],
-      winner: null
-    }
+  state: {
+    gameState: 'START',
+    players: [
+      { cards: [], selectedCards: [] },
+      { cards: [], selectedCards: [] },
+      { cards: [], selectedCards: [] }
+    ],
+    currentPlayer: 0,
+    playedCards: [],
+    winner: null
   },
+
   mutations: {
     SET_GAME_STATE(state, newState) {
       state.gameState = newState;
     },
-    SET_PLAYER_CARDS(state, { playerIndex, cards }) {
-      state.players[playerIndex].cards = cards;
+    DEAL_CARDS(state, shuffledDeck) {
+      state.players.forEach((player, index) => {
+        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18);
+        player.selectedCards = [];
+      });
     },
     SELECT_CARD(state, { playerIndex, cardIndex }) {
-      const card = state.players[playerIndex].cards[cardIndex];
+      const player = state.players[playerIndex];
+      const card = player.cards[cardIndex];
       card.selected = !card.selected;
+      
       if (card.selected) {
-        state.players[playerIndex].selectedCards.push(card);
+        player.selectedCards.push(card);
       } else {
-        const index = state.players[playerIndex].selectedCards.indexOf(card);
-        state.players[playerIndex].selectedCards.splice(index, 1);
+        const index = player.selectedCards.findIndex(c => c.value === card.value && c.suit === card.suit);
+        if (index !== -1) {
+          player.selectedCards.splice(index, 1);
+        }
       }
     },
-    PLAY_CARDS(state, cards) {
-      state.playedCards = cards;
-      state.players[state.currentPlayer].cards = state.players[state.currentPlayer].cards.filter(card => !card.selected);
-      state.players[state.currentPlayer].selectedCards = [];
+    PLAY_CARDS(state, playerIndex) {
+      const player = state.players[playerIndex];
+      state.playedCards = [...player.selectedCards];
+      player.cards = player.cards.filter(card => !card.selected);
+      player.selectedCards = [];
       state.currentPlayer = (state.currentPlayer + 1) % 3;
     },
-    SET_WINNER(state, winner) {
-      state.winner = winner;
+    SET_WINNER(state, playerIndex) {
+      state.winner = playerIndex;
       state.gameState = 'END';
+    },
+    RESET_GAME(state) {
+      state.gameState = 'START';
+      state.players.forEach(player => {
+        player.cards = [];
+        player.selectedCards = [];
+      });
+      state.currentPlayer = 0;
+      state.playedCards = [];
+      state.winner = null;
     }
   },
+
   actions: {
-    async startGame1({ commit }) {
-      const cards = await gameApi.startGame();
-      cards.forEach((playerCards, index) => {
-        commit('SET_PLAYER_CARDS', { playerIndex: index, cards: playerCards });
-      });
+    startGame({ commit }) {
+      let deck = createDeck();
+      deck = shuffleDeck(deck);
+      commit('DEAL_CARDS', deck);
       commit('SET_GAME_STATE', 'PLAYING');
     },
-
-    async startGame({ commit }) {
-      const cards = await gameApi.startGame();
-      cards.forEach((playerCards, index) => {
-        commit('SET_PLAYER_CARDS', { playerIndex: index, cards: playerCards });
-      });
-      commit('SET_GAME_STATE', 'PLAYING');
+    selectCard({ commit }, payload) {
+      commit('SELECT_CARD', payload);
     },
-
-
-    selectCard({ commit, state }, cardIndex) {
-      commit('SELECT_CARD', { playerIndex: state.currentPlayer, cardIndex });
-    },
-    async playCards({ commit, state }) {
-      const selectedCards = state.players[state.currentPlayer].selectedCards;
-      const result = await gameApi.playCards(selectedCards);
-      if (result.valid) {
-        commit('PLAY_CARDS', selectedCards);
-        if (result.winner) {
-          commit('SET_WINNER', result.winner);
-        }
-      } else {
-        // 重置选中的牌
-        state.players[state.currentPlayer].selectedCards.forEach(card => card.selected = false);
-        state.players[state.currentPlayer].selectedCards = [];
+    playCards({ commit, state }, playerIndex) {
+      commit('PLAY_CARDS', playerIndex);
+      if (state.players[playerIndex].cards.length === 0) {
+        commit('SET_WINNER', playerIndex);
       }
     },
-    restartGame({ dispatch }) {
-      // 重置游戏状态
-      this.replaceState({
-        gameState: 'START',
-        players: [
-          { cards: [], selectedCards: [] },
-          { cards: [], selectedCards: [] },
-          { cards: [], selectedCards: [] }
-        ],
-        currentPlayer: 0,
-        playedCards: [],
-        winner: null
-      });
-      dispatch('startGame');
+    restartGame({ commit }) {
+      commit('RESET_GAME');
+    }
+  },
+
+  getters: {
+    getPlayerCards: (state) => (playerIndex) => {
+      return state.players[playerIndex].cards;
+    },
+    getCurrentPlayerCards: (state) => {
+      return state.players[state.currentPlayer].cards;
+    },
+    getPlayedCards: (state) => {
+      return state.playedCards;
     }
   }
-})
+});

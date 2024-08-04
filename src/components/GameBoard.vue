@@ -1,5 +1,10 @@
 <template>
   <div class="game-board">
+    <button @click="toggleMusic">{{ isMusicPlaying ? '关闭音乐' : '开启音乐' }}</button>
+
+    <audio ref="backgroundMusic" loop>
+      <source src="/assets/bgm1.mp3" type="audio/mpeg">
+    </audio>
     <start-screen v-if="gameState === 'START'" @start-game="startGame" />
     <template v-else-if="gameState === 'PLAYING'">
       <div class="game-area">
@@ -57,8 +62,12 @@ import VictoryScreen from './VictoryScreen.vue';
 import { validateCardPattern, isGreaterThanLastPlay, canPass } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
 
+import { ref, onMounted } from 'vue';
+
 export default {
   name: 'GameBoard',
+
+
   
   components: {
     StartScreen,
@@ -68,6 +77,19 @@ export default {
   },
   setup() {
     const store = useStore();
+    
+    const isMusicPlaying = ref(false);
+    const toggleMusic = () => {
+    if (backgroundMusic.value) {
+      if (backgroundMusic.value.paused) {
+        backgroundMusic.value.play();
+        isMusicPlaying.value = true;
+      } else {
+        backgroundMusic.value.pause();
+        isMusicPlaying.value = false;
+      }
+    }
+  };
 
     const gameState = computed(() => store.state.gameState);
     const players = computed(() => store.state.players);
@@ -75,14 +97,36 @@ export default {
     const playedCards = computed(() => store.state.playedCards);
     const lastPlayedCards = computed(() => store.state.lastPlayedCards);
     const winner = computed(() => store.state.winner);
+    const backgroundMusic = ref(null);
 
+    const stopBackgroundMusic = () => {
+  if (backgroundMusic.value) {
+    backgroundMusic.value.pause();
+    backgroundMusic.value.currentTime = 0;
+  }
+};
     const startGame = () => {
       store.dispatch('startGame');
       for (let i = 0; i < 3; i++) {
         store.dispatch('sortPlayerCards', i);
       }
+      playBackgroundMusic();
     };
 
+    const playBackgroundMusic = () => {
+      if (backgroundMusic.value) {
+        backgroundMusic.value.play().catch(error => {
+          console.error("Error playing audio:", error);
+        });
+      }
+    };
+
+    onMounted(() => {
+      // 预加载音频
+      if (backgroundMusic.value) {
+        backgroundMusic.value.load();
+      }
+    });
     const restartGame = () => store.dispatch('restartGame');
     
     const handleSelectCard = (playerIndex, cardIndex) => 
@@ -112,8 +156,14 @@ EventBus.emit('show-alert', '无效的牌型！');
       }
     };
 
+    
+
     return {
+      backgroundMusic,
+      isMusicPlaying,
+      toggleMusic,
       gameState,
+      stopBackgroundMusic,
       players,
       currentPlayer,
       playedCards,

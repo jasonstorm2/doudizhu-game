@@ -1,4 +1,7 @@
 import { createStore } from 'vuex';
+import { validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
+import { EventBus } from '../eventBus';
+
 
 // 辅助函数
 function createDeck() {
@@ -38,6 +41,9 @@ export default createStore({
     ],
     currentPlayer: 0,
     playedCards: [],
+    lastPlayedCards: null,
+    lastValidPlay: null,
+    passCount: 0,
     winner: null
   },
 
@@ -68,9 +74,20 @@ export default createStore({
     PLAY_CARDS(state, playerIndex) {
       const player = state.players[playerIndex];
       state.playedCards = [...player.selectedCards];
+      state.lastPlayedCards = [...player.selectedCards];
+      state.lastValidPlay = [...player.selectedCards];
       player.cards = player.cards.filter(card => !card.selected).sort(compareCards);
       player.selectedCards = [];
       state.currentPlayer = (state.currentPlayer + 1) % 3;
+      state.passCount = 0;
+    },
+    PASS_PLAY(state) {
+      state.currentPlayer = (state.currentPlayer + 1) % 3;
+      state.passCount++;
+      if (state.passCount === 2) {
+        state.lastPlayedCards = null;
+        state.passCount = 0;
+      }
     },
     SET_WINNER(state, playerIndex) {
       state.winner = playerIndex;
@@ -84,6 +101,9 @@ export default createStore({
       });
       state.currentPlayer = 0;
       state.playedCards = [];
+      state.lastPlayedCards = null;
+      state.lastValidPlay = null;
+      state.passCount = 0;
       state.winner = null;
     },
     SORT_PLAYER_CARDS(state, playerIndex) {
@@ -101,11 +121,31 @@ export default createStore({
     selectCard({ commit }, payload) {
       commit('SELECT_CARD', payload);
     },
-    playCards({ commit, state }, playerIndex) {
-      commit('PLAY_CARDS', playerIndex);
-      if (state.players[playerIndex].cards.length === 0) {
-        commit('SET_WINNER', playerIndex);
+    playCards({ commit, state, dispatch }, playerIndex) {
+      const selectedCards = state.players[playerIndex].selectedCards;
+      if (validateCardPattern(selectedCards)) {
+        if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
+          commit('PLAY_CARDS', playerIndex);
+          if (state.players[playerIndex].cards.length === 0) {
+            commit('SET_WINNER', playerIndex);
+          }
+        } else {
+          dispatch('showAlert', '出的牌必须大于上家的牌！');
+        }
+      } else {
+        dispatch('showAlert', '无效的牌型！');
       }
+    },
+    showAlert(context, message) {
+      // 这里需要通过某种方式调用 App.vue 中的 showAlert 方法
+      // 一种方法是使用事件总线
+      EventBus.$emit('show-alert', message);
+    },
+    passPlay({ commit, state }) {
+      if (state.lastPlayedCards === null) {
+        throw new Error('第一个出牌的玩家不能过牌！');
+      }
+      commit('PASS_PLAY');
     },
     restartGame({ commit }) {
       commit('RESET_GAME');
@@ -124,6 +164,15 @@ export default createStore({
     },
     getPlayedCards: (state) => {
       return state.playedCards;
+    },
+    getLastPlayedCards: (state) => {
+      return state.lastPlayedCards;
+    },
+    getLastValidPlay: (state) => {
+      return state.lastValidPlay;
+    },
+    canPass: (state) => {
+      return state.lastPlayedCards !== null;
     }
   }
 });

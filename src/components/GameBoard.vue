@@ -1,7 +1,5 @@
 <template>
   <div class="game-board">
-    <!-- <h2>跑得快</h2> -->
-    <!-- <p>游戏信息: {{ gameInfo }}</p> -->
     <start-screen v-if="gameState === 'START'" @start-game="startGame" />
     <template v-else-if="gameState === 'PLAYING'">
       <div class="game-area">
@@ -13,6 +11,7 @@
               @select-card="(cardIndex) => handleSelectCard(1, cardIndex)"
             />
             <button @click="handlePlayCards(1)" :disabled="currentPlayer !== 1">出牌</button>
+            <button @click="handlePass(1)" :disabled="currentPlayer !== 1 || !canPass(1)">过牌</button>
           </div>
           <div class="player player-2">
             <player-hand 
@@ -21,6 +20,7 @@
               @select-card="(cardIndex) => handleSelectCard(2, cardIndex)"
             />
             <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">出牌</button>
+            <button @click="handlePass(2)" :disabled="currentPlayer !== 2 || !canPass(2)">过牌</button>
           </div>
         </div>
         
@@ -35,6 +35,7 @@
             @select-card="(cardIndex) => handleSelectCard(0, cardIndex)"
           />
           <button @click="handlePlayCards(0)" :disabled="currentPlayer !== 0">出牌</button>
+          <button @click="handlePass(0)" :disabled="currentPlayer !== 0 || !canPass(0)">过牌</button>
         </div>
       </div>
     </template>
@@ -43,9 +44,6 @@
       :winner="winner" 
       @restart="restartGame" 
     />
-  </div>
-  <div class="played-cards-area">
-    <played-cards :cards="playedCards" />
   </div>
 </template>
 
@@ -56,6 +54,8 @@ import StartScreen from './StartScreen.vue';
 import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
 import VictoryScreen from './VictoryScreen.vue';
+import { validateCardPattern, isGreaterThanLastPlay, canPass } from '../api/gameApi.js';
+
 
 export default {
   name: 'GameBoard',
@@ -73,29 +73,41 @@ export default {
     const players = computed(() => store.state.players);
     const currentPlayer = computed(() => store.state.currentPlayer);
     const playedCards = computed(() => store.state.playedCards);
-    
-
-
+    const lastPlayedCards = computed(() => store.state.lastPlayedCards);
     const winner = computed(() => store.state.winner);
 
-    const gameInfo = computed(() => 
-      `当前游戏状态: ${gameState.value}, 当前玩家: ${currentPlayer.value + 1}`
-    );
-
-    // const startGame = () => store.dispatch('startGame');
     const startGame = () => {
-  store.dispatch('startGame');
-  // 确保所有玩家的牌都已排序
-  for (let i = 0; i < 3; i++) {
-    store.dispatch('sortPlayerCards', i);
-  }
-};
+      store.dispatch('startGame');
+      for (let i = 0; i < 3; i++) {
+        store.dispatch('sortPlayerCards', i);
+      }
+    };
 
     const restartGame = () => store.dispatch('restartGame');
+    
     const handleSelectCard = (playerIndex, cardIndex) => 
       store.dispatch('selectCard', { playerIndex, cardIndex });
-    const handlePlayCards = (playerIndex) => 
-      store.dispatch('playCards', playerIndex);
+    
+    const handlePlayCards = (playerIndex) => {
+      const selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
+      if (validateCardPattern(selectedCards)) {
+        if (!lastPlayedCards.value || isGreaterThanLastPlay(selectedCards, lastPlayedCards.value)) {
+          store.dispatch('playCards', playerIndex);
+        } else {
+          alert('出的牌必须大于上家的牌！');
+        }
+      } else {
+        alert('无效的牌型！');
+      }
+    };
+
+    const handlePass = (playerIndex) => {
+      if (canPass(players.value[playerIndex].cards, lastPlayedCards.value)) {
+        store.dispatch('passPlay', playerIndex);
+      } else {
+        alert('不能过牌！');
+      }
+    };
 
     return {
       gameState,
@@ -103,16 +115,14 @@ export default {
       currentPlayer,
       playedCards,
       winner,
-      gameInfo,
       startGame,
       restartGame,
       handleSelectCard,
-      handlePlayCards
+      handlePlayCards,
+      handlePass,
+      canPass: (playerIndex) => canPass(players.value[playerIndex].cards, lastPlayedCards.value)
     };
   },
-
-
-
 };
 </script>
 
@@ -164,5 +174,6 @@ export default {
 
 button {
   margin-top: 10px;
+  margin-right: 5px;
 }
 </style>

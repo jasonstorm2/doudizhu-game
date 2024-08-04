@@ -1,7 +1,7 @@
 <template>
   <div class="game-board">
-    <h2>跑得快</h2>
-    <p>游戏信息: {{ gameInfo }}</p>
+    <!-- <h2>跑得快</h2> -->
+    <!-- <p>游戏信息: {{ gameInfo }}</p> -->
     <start-screen v-if="gameState === 'START'" @start-game="startGame" />
     <template v-else-if="gameState === 'PLAYING'">
       <div class="game-area">
@@ -82,7 +82,15 @@ export default {
       `当前游戏状态: ${gameState.value}, 当前玩家: ${currentPlayer.value + 1}`
     );
 
-    const startGame = () => store.dispatch('startGame');
+    // const startGame = () => store.dispatch('startGame');
+    const startGame = () => {
+  store.dispatch('startGame');
+  // 确保所有玩家的牌都已排序
+  for (let i = 0; i < 3; i++) {
+    store.dispatch('sortPlayerCards', i);
+  }
+};
+
     const restartGame = () => store.dispatch('restartGame');
     const handleSelectCard = (playerIndex, cardIndex) => 
       store.dispatch('selectCard', { playerIndex, cardIndex });

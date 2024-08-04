@@ -10,6 +10,16 @@ function createDeck() {
   return deck;
 }
 
+function compareCards(a, b) {
+  const order = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
+  if (a.suit === 'Joker' && b.suit === 'Joker') {
+    return order.indexOf(a.value) - order.indexOf(b.value);
+  }
+  if (a.suit === 'Joker') return -1;
+  if (b.suit === 'Joker') return 1;
+  return order.indexOf(a.value) - order.indexOf(b.value);
+}
+
 function shuffleDeck(deck) {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -37,7 +47,7 @@ export default createStore({
     },
     DEAL_CARDS(state, shuffledDeck) {
       state.players.forEach((player, index) => {
-        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18);
+        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(compareCards);
         player.selectedCards = [];
       });
     },
@@ -58,7 +68,7 @@ export default createStore({
     PLAY_CARDS(state, playerIndex) {
       const player = state.players[playerIndex];
       state.playedCards = [...player.selectedCards];
-      player.cards = player.cards.filter(card => !card.selected);
+      player.cards = player.cards.filter(card => !card.selected).sort(compareCards);
       player.selectedCards = [];
       state.currentPlayer = (state.currentPlayer + 1) % 3;
     },
@@ -75,7 +85,10 @@ export default createStore({
       state.currentPlayer = 0;
       state.playedCards = [];
       state.winner = null;
-    }
+    },
+    SORT_PLAYER_CARDS(state, playerIndex) {
+      state.players[playerIndex].cards.sort(compareCards);
+    },
   },
 
   actions: {
@@ -96,7 +109,10 @@ export default createStore({
     },
     restartGame({ commit }) {
       commit('RESET_GAME');
-    }
+    },
+    sortPlayerCards({ commit }, playerIndex) {
+      commit('SORT_PLAYER_CARDS', playerIndex);
+    },
   },
 
   getters: {

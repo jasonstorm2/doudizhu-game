@@ -55,7 +55,7 @@ import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
 import VictoryScreen from './VictoryScreen.vue';
 import { validateCardPattern, isGreaterThanLastPlay, canPass } from '../api/gameApi.js';
-
+import { EventBus } from '../eventBus';
 
 export default {
   name: 'GameBoard',
@@ -94,10 +94,12 @@ export default {
         if (!lastPlayedCards.value || isGreaterThanLastPlay(selectedCards, lastPlayedCards.value)) {
           store.dispatch('playCards', playerIndex);
         } else {
-          alert('出的牌必须大于上家的牌！');
+          // 使用这行
+EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
         }
       } else {
-        alert('无效的牌型！');
+        // 使用这行
+EventBus.emit('show-alert', '无效的牌型！');
       }
     };
 
@@ -105,7 +107,8 @@ export default {
       if (canPass(players.value[playerIndex].cards, lastPlayedCards.value)) {
         store.dispatch('passPlay', playerIndex);
       } else {
-        alert('不能过牌！');
+        EventBus.emit('show-alert', '不能过牌！');
+
       }
     };
 

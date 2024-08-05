@@ -56,15 +56,21 @@ export function validateCardPattern(cards) {
   // 三张
   if (cards.length === 3 && cards[0].value === cards[1].value && cards[1].value === cards[2].value) return true;
 
-  // 三带一或三带二
+
+  if (isConsecutivePairs(cards)) return true;
+
+    // 三带一或三带二
   if (cards.length === 4 || cards.length === 5) {
     const valueCounts = {};
     cards.forEach(card => {
       valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
     });
     const counts = Object.values(valueCounts);
-    return counts.includes(3) && (counts.includes(1) || counts.includes(2));
+    if (counts.includes(3) && (counts.includes(1) || counts.includes(2))) {
+      return true;
+    }
   }
+
 
   // 炸弹
   if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
@@ -89,18 +95,39 @@ export function validateCardPattern(cards) {
     return true;
   }
 
-  // 连对
-  if (cards.length >= 6 && cards.length % 2 === 0) {
-    const values = cards.map(c => c.value);
-    if (values.includes('2') || values.includes('Small') || values.includes('Big')) return false;
-    for (let i = 0; i < values.length; i += 2) {
-      if (values[i] !== values[i+1]) return false;
-      if (i > 0 && cardOrder.indexOf(values[i]) - cardOrder.indexOf(values[i-2]) !== 1) return false;
-    }
-    return true;
-  }
+
+  
 
   return false;
+}
+function isConsecutivePairs(cards) {
+  if (cards.length < 4 || cards.length % 2 !== 0) return false;
+
+  const values = cards.map(c => c.value);
+  
+  // 检查是否包含不允许的牌值（2, Small, Big）
+  if (values.some(v => v === '2' || v === 'Small' || v === 'Big')) return false;
+
+  // 检查是否都是对子
+  for (let i = 0; i < values.length; i += 2) {
+    if (values[i] !== values[i + 1]) return false;
+  }
+
+  // 获取对子的值
+  const pairValues = values.filter((_, index) => index % 2 === 0);
+  
+  // 检查对子是否连续
+  for (let i = 1; i < pairValues.length; i++) {
+    const currentIndex = cardOrder.indexOf(pairValues[i]);
+    const previousIndex = cardOrder.indexOf(pairValues[i - 1]);
+    
+    // 检查是否连续且不超过 A
+    if (previousIndex - currentIndex !== 1 || currentIndex > cardOrder.indexOf('A')) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function isGreaterThanLastPlay(currentCards, lastPlayedCards) {

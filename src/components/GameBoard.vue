@@ -1,54 +1,42 @@
 <template>
   <div class="game-board">
-    <button @click="toggleMusic">{{ isMusicPlaying ? '关闭音乐' : '开启音乐' }}</button>
 
     <audio ref="backgroundMusic" loop>
       <source src="/assets/bgm1.mp3" type="audio/mpeg">
     </audio>
     <start-screen v-if="gameState === 'START'" @start-game="startGame" />
     <template v-else-if="gameState === 'PLAYING'">
+      <button @click="toggleMusic">{{ isMusicPlaying ? '关闭音乐' : '开启音乐' }}</button>
+
       <div class="game-area">
         <div class="players-container">
           <div class="player player-1">
-            <player-hand 
-              :cards="players[1].cards" 
-              :isCurrentPlayer="currentPlayer === 1"
-              @select-card="(cardIndex) => handleSelectCard(1, cardIndex)"
-            />
+            <player-hand :cards="players[1].cards" :isCurrentPlayer="currentPlayer === 1"
+              @select-card="(cardIndex) => handleSelectCard(1, cardIndex)" />
             <button @click="handlePlayCards(1)" :disabled="currentPlayer !== 1">出牌</button>
             <button @click="handlePass(1)" :disabled="currentPlayer !== 1 || !canPass(1)">过牌</button>
           </div>
           <div class="player player-2">
-            <player-hand 
-              :cards="players[2].cards" 
-              :isCurrentPlayer="currentPlayer === 2"
-              @select-card="(cardIndex) => handleSelectCard(2, cardIndex)"
-            />
+            <player-hand :cards="players[2].cards" :isCurrentPlayer="currentPlayer === 2"
+              @select-card="(cardIndex) => handleSelectCard(2, cardIndex)" />
             <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">出牌</button>
             <button @click="handlePass(2)" :disabled="currentPlayer !== 2 || !canPass(2)">过牌</button>
           </div>
         </div>
-        
+
         <div class="played-cards-area">
           <played-cards :cards="playedCards" />
         </div>
-        
+
         <div class="player player-0">
-          <player-hand 
-            :cards="players[0].cards" 
-            :isCurrentPlayer="currentPlayer === 0"
-            @select-card="(cardIndex) => handleSelectCard(0, cardIndex)"
-          />
+          <player-hand :cards="players[0].cards" :isCurrentPlayer="currentPlayer === 0"
+            @select-card="(cardIndex) => handleSelectCard(0, cardIndex)" />
           <button @click="handlePlayCards(0)" :disabled="currentPlayer !== 0">出牌</button>
           <button @click="handlePass(0)" :disabled="currentPlayer !== 0 || !canPass(0)">过牌</button>
         </div>
       </div>
     </template>
-    <victory-screen 
-      v-if="gameState === 'END'" 
-      :winner="winner" 
-      @restart="restartGame" 
-    />
+    <victory-screen v-if="gameState === 'END'" :winner="winner" @restart="restartGame" />
   </div>
 </template>
 
@@ -67,8 +55,6 @@ import { ref, onMounted } from 'vue';
 export default {
   name: 'GameBoard',
 
-
-  
   components: {
     StartScreen,
     PlayerHand,
@@ -77,19 +63,19 @@ export default {
   },
   setup() {
     const store = useStore();
-    
+
     const isMusicPlaying = ref(false);
     const toggleMusic = () => {
-    if (backgroundMusic.value) {
-      if (backgroundMusic.value.paused) {
-        backgroundMusic.value.play();
-        isMusicPlaying.value = true;
-      } else {
-        backgroundMusic.value.pause();
-        isMusicPlaying.value = false;
+      if (backgroundMusic.value) {
+        if (backgroundMusic.value.paused) {
+          backgroundMusic.value.play();
+          isMusicPlaying.value = true;
+        } else {
+          backgroundMusic.value.pause();
+          isMusicPlaying.value = false;
+        }
       }
-    }
-  };
+    };
 
     const gameState = computed(() => store.state.gameState);
     const players = computed(() => store.state.players);
@@ -100,11 +86,11 @@ export default {
     const backgroundMusic = ref(null);
 
     const stopBackgroundMusic = () => {
-  if (backgroundMusic.value) {
-    backgroundMusic.value.pause();
-    backgroundMusic.value.currentTime = 0;
-  }
-};
+      if (backgroundMusic.value) {
+        backgroundMusic.value.pause();
+        backgroundMusic.value.currentTime = 0;
+      }
+    };
     const startGame = () => {
       store.dispatch('startGame');
       for (let i = 0; i < 3; i++) {
@@ -128,10 +114,10 @@ export default {
       }
     });
     const restartGame = () => store.dispatch('restartGame');
-    
-    const handleSelectCard = (playerIndex, cardIndex) => 
+
+    const handleSelectCard = (playerIndex, cardIndex) =>
       store.dispatch('selectCard', { playerIndex, cardIndex });
-    
+
     const handlePlayCards = (playerIndex) => {
       const selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
       if (validateCardPattern(selectedCards)) {
@@ -139,11 +125,11 @@ export default {
           store.dispatch('playCards', playerIndex);
         } else {
           // 使用这行
-EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
+          EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
         }
       } else {
         // 使用这行
-EventBus.emit('show-alert', '无效的牌型！');
+        EventBus.emit('show-alert', '无效的牌型啦！');
       }
     };
 
@@ -156,7 +142,7 @@ EventBus.emit('show-alert', '无效的牌型！');
       }
     };
 
-    
+
 
     return {
       backgroundMusic,

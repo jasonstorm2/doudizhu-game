@@ -44,7 +44,8 @@ export default createStore({
     lastPlayedCards: null,
     lastValidPlay: null,
     passCount: 0,
-    winner: null
+    winner: null,
+    lastValidPlayPlayer: null,
   },
 
   mutations: {
@@ -76,6 +77,7 @@ export default createStore({
       state.playedCards = [...player.selectedCards];
       state.lastPlayedCards = [...player.selectedCards];
       state.lastValidPlay = [...player.selectedCards].map(card => ({...card, playerIndex}));
+      state.lastValidPlayPlayer = playerIndex;
       player.cards = player.cards.filter(card => !card.selected).sort(compareCards);
       player.selectedCards = [];
       state.currentPlayer = (state.currentPlayer + 1) % 3;
@@ -83,11 +85,14 @@ export default createStore({
     },
 
     PASS_PLAY(state) {
-      state.currentPlayer = (state.currentPlayer + 1) % 3;
       state.passCount++;
       if (state.passCount === 2) {
+        // 两家都过牌，开始新的一小局
         state.passCount = 0;
-        // 不要设置 lastPlayedCards 为 null
+        state.lastPlayedCards = null;
+        state.currentPlayer = state.lastValidPlayPlayer;
+      } else {
+        state.currentPlayer = (state.currentPlayer + 1) % 3;
       }
     },
     SET_WINNER(state, playerIndex) {
@@ -174,9 +179,12 @@ export default createStore({
     },
 
     canPass: (state) => (playerIndex) => {
+      // 如果是新一小局的首发玩家，不能过牌
+      if (state.lastPlayedCards === null) {
+        return false;
+      }
       const playerCards = state.players[playerIndex].cards;
-      const lastPlayedCards = state.lastPlayedCards;
-      return canPass(playerCards, lastPlayedCards);
+      return canPass(playerCards, state.lastPlayedCards);
     }
   }
 });

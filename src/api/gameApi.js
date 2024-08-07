@@ -178,7 +178,7 @@ function compareStraight(straight1, straight2) {
 
 
 export function canPass(playerCards, lastPlayedCards) {
-  // 如果没有上家出的牌，不能过
+  // 如果没有上家出的牌（新的一小局），不能过
   if (!lastPlayedCards || lastPlayedCards.length === 0) return false;
 
   // 检查玩家是否有大于上家的牌
@@ -186,12 +186,12 @@ export function canPass(playerCards, lastPlayedCards) {
     const combinations = getCombinations(playerCards, i);
     for (const combo of combinations) {
       if (validateCardPattern(combo) && isGreaterThanLastPlay(combo, lastPlayedCards)) {
-        return false; // 有大于上家的牌，不能过
+        return true; // 有大于上家的牌，可以选择出牌或过牌
       }
     }
   }
 
-  return true; // 没有大于上家的牌，可以过
+  return true; // 没有大于上家的牌，必须过牌
 }
 
 // 辅助函数：获取所有可能的牌组合

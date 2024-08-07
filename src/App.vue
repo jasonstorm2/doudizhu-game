@@ -29,11 +29,11 @@ export default {
     }
   },
   mounted() {
-  EventBus.on('show-alert', this.showAlert)
-},
-beforeUnmount() {
-  EventBus.off('show-alert', this.showAlert)
-}
+    EventBus.on('show-alert', this.showAlert)
+  },
+  beforeUnmount() {
+    EventBus.off('show-alert', this.showAlert)
+  }
 }
 
 </script>
@@ -51,10 +51,13 @@ beforeUnmount() {
   z-index: 1000;
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.5s;
 }
-.fade-enter, .fade-leave-to {
+
+.fade-enter,
+.fade-leave-to {
   opacity: 0;
 }
 </style>

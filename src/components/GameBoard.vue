@@ -62,21 +62,15 @@ export default {
     VictoryScreen
   },
   setup() {
-    const store = useStore();
-
-    const isMusicPlaying = ref(false);
-    const toggleMusic = () => {
+    onMounted(() => {
+      // 预加载音频
       if (backgroundMusic.value) {
-        if (backgroundMusic.value.paused) {
-          backgroundMusic.value.play();
-          isMusicPlaying.value = true;
-        } else {
-          backgroundMusic.value.pause();
-          isMusicPlaying.value = false;
-        }
+        backgroundMusic.value.load();
       }
-    };
+    });
 
+    const store = useStore();
+    const isMusicPlaying = ref(false);
     const gameState = computed(() => store.state.gameState);
     const players = computed(() => store.state.players);
     const currentPlayer = computed(() => store.state.currentPlayer);
@@ -84,7 +78,6 @@ export default {
     const lastPlayedCards = computed(() => store.state.lastPlayedCards);
     const winner = computed(() => store.state.winner);
     const backgroundMusic = ref(null);
-
     const stopBackgroundMusic = () => {
       if (backgroundMusic.value) {
         backgroundMusic.value.pause();
@@ -98,6 +91,17 @@ export default {
       }
       playBackgroundMusic();
     };
+    const toggleMusic = () => {
+      if (backgroundMusic.value) {
+        if (backgroundMusic.value.paused) {
+          backgroundMusic.value.play();
+          isMusicPlaying.value = true;
+        } else {
+          backgroundMusic.value.pause();
+          isMusicPlaying.value = false;
+        }
+      }
+    };
 
     const playBackgroundMusic = () => {
       if (backgroundMusic.value) {
@@ -107,12 +111,6 @@ export default {
       }
     };
 
-    onMounted(() => {
-      // 预加载音频
-      if (backgroundMusic.value) {
-        backgroundMusic.value.load();
-      }
-    });
     const restartGame = () => store.dispatch('restartGame');
 
     const handleSelectCard = (playerIndex, cardIndex) =>
@@ -141,8 +139,6 @@ export default {
 
       }
     };
-
-
 
     return {
       backgroundMusic,

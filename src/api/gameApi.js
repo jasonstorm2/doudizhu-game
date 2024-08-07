@@ -1,37 +1,5 @@
 // gameApi.js
 
-const gameApi = {
-  startGame() {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const suits = ['♠', '♥', '♣', '♦'];
-        const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
-        let deck = suits.flatMap(suit => values.map(value => ({ suit, value })));
-        // 添加大小王
-        deck.push({ suit: 'Joker', value: 'Small' }, { suit: 'Joker', value: 'Big' });
-        const shuffled = deck.sort(() => Math.random() - 0.5);
-        resolve([
-          shuffled.slice(0, 17),
-          shuffled.slice(17, 34),
-          shuffled.slice(34)
-        ]);
-      }, 1000);
-    });
-  },
-
-  playCards(cards, lastPlayedCards) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const valid = validateCardPattern(cards);
-        const greater = lastPlayedCards ? isGreaterThanLastPlay(cards, lastPlayedCards) : true;
-        const winner = cards.length === 0 ? null : (valid && greater);
-        resolve({ valid, greater, winner });
-      }, 500);
-    });
-  }
-};
-
-export default gameApi;
 
 // 辅助函数
 
@@ -71,10 +39,9 @@ export function validateCardPattern(cards) {
     }
   }
 
-
   // 炸弹
   if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
-  if (cards.length === 2 && cards[0].suit === 'Joker' && cards[1].suit === 'Joker') return true;
+  if (cards.length === 2 && cards.some(c => c.value === 'Small') && cards.some(c => c.value === 'Big')) return true;
 
   // 四带三
   if (cards.length === 7) {
@@ -100,6 +67,7 @@ export function validateCardPattern(cards) {
 
   return false;
 }
+
 function isConsecutivePairs(cards) {
   if (cards.length < 4 || cards.length % 2 !== 0) return false;
 
@@ -131,16 +99,86 @@ function isConsecutivePairs(cards) {
 }
 
 export function isGreaterThanLastPlay(currentCards, lastPlayedCards) {
-  if (currentCards.length !== lastPlayedCards.length) {
-    // 炸弹可以打任何牌
-    if (currentCards.length === 4 && new Set(currentCards.map(c => c.value)).size === 1) return true;
-    if (currentCards.length === 2 && currentCards[0].suit === 'Joker' && currentCards[1].suit === 'Joker') return true;
-    return false;
+  // 如果没有上家出牌，玩家可以任意出牌
+  if (!lastPlayedCards || lastPlayedCards.length === 0) {
+    return true;
   }
 
-  // 比较相同类型的牌
-  return compareCards(currentCards[0], lastPlayedCards[0]) > 0;
+  // 确保出牌数量相同（除了炸弹的情况）
+  if (currentCards.length !== lastPlayedCards.length) {
+    // 检查是否为炸弹
+    if (isValidBomb(currentCards)) {
+      return true; // 炸弹可以打任何牌
+    }
+    return false; // 不同数量的牌不能比较（除非是炸弹）
+  }
+
+  // 检查炸弹
+  if (isValidBomb(currentCards)) {
+    if (isValidBomb(lastPlayedCards)) {
+      // 比较两个炸弹的大小
+      return compareBombs(currentCards, lastPlayedCards);
+    }
+    return true; // 当前是炸弹，上家不是炸弹
+  }
+
+  // 根据牌型进行比较
+  switch (currentCards.length) {
+    case 1:
+      return compareSingleCard(currentCards[0], lastPlayedCards[0]);
+    case 2:
+      return comparePair(currentCards, lastPlayedCards);
+    case 3:
+      return compareTriple(currentCards, lastPlayedCards);
+    case 4:
+    case 5:
+      return compareTriplePlusCards(currentCards, lastPlayedCards);
+    default:
+      return compareStraight(currentCards, lastPlayedCards);
+  }
 }
+
+// 辅助函数
+
+function isValidBomb(cards) {
+  if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
+  if (cards.length === 2 && cards[0].value === 'Small' && cards[1].value === 'Big') return true;
+  return false;
+}
+
+function compareBombs(bomb1, bomb2) {
+  // 王炸最大
+  if (bomb1.length === 2) return true;
+  if (bomb2.length === 2) return false;
+  // 比较普通炸弹
+  return cardOrder.indexOf(bomb1[0].value) > cardOrder.indexOf(bomb2[0].value);
+}
+
+function compareSingleCard(card1, card2) {
+  return compareCards(card1, card2) > 0;
+}
+
+function comparePair(pair1, pair2) {
+  return compareCards(pair1[0], pair2[0]) > 0;
+}
+
+function compareTriple(triple1, triple2) {
+  return compareCards(triple1[0], triple2[0]) > 0;
+}
+
+function compareTriplePlusCards(cards1, cards2) {
+  // 只比较三张的部分
+  const triple1 = cards1.slice(0, 3);
+  const triple2 = cards2.slice(0, 3);
+  return compareTriple(triple1, triple2);
+}
+
+function compareStraight(straight1, straight2) {
+  // 比较顺子的第一张牌
+  return compareCards(straight1[0], straight2[0]) > 0;
+}
+
+
 
 export function canPass(playerCards, lastPlayedCards) {
   // 如果没有上家出的牌，不能过

@@ -18,52 +18,49 @@ export function validateCardPattern(cards) {
   // 单牌
   if (cards.length === 1) return true;
 
-  // 对牌
-  if (cards.length === 2 && cards[0].value === cards[1].value) return true;
+  // 2张牌的情况
+  if (cards.length === 2) {
+    // 大小王炸弹
+    if (cards[0].value === 'Big' && cards[1].value === 'Small') return true;
+    // 对子
+    if (cards[0].value === cards[1].value) return true;
+    return false;
+  }
 
-  // 三张
+  // 3张牌的情况（三张）
   if (cards.length === 3 && cards[0].value === cards[1].value && cards[1].value === cards[2].value) return true;
 
+  // 4张或以上的牌
+  if (cards.length >= 4) {
+    // 炸弹（4张相同的牌）
+    if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
 
-  if (isConsecutivePairs(cards)) return true;
+    // 连对
+    if (isConsecutivePairs(cards)) return true;
 
     // 三带一或三带二
-  if (cards.length === 4 || cards.length === 5) {
-    const valueCounts = {};
-    cards.forEach(card => {
-      valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
-    });
-    const counts = Object.values(valueCounts);
-    if (counts.includes(3) && (counts.includes(1) || counts.includes(2))) {
+    if (cards.length === 4 || cards.length === 5) {
+      const valueCounts = {};
+      cards.forEach(card => {
+        valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
+      });
+      const counts = Object.values(valueCounts);
+      if (counts.includes(3) && (counts.includes(1) || counts.includes(2))) {
+        return true;
+      }
+    }
+
+    // 顺子
+    if (cards.length >= 5) {
+      const values = cards.map(c => c.value);
+      if (values.includes('2') || values.includes('Small') || values.includes('Big')) return false;
+      for (let i = 1; i < values.length; i++) {
+        if (cardOrder.indexOf(values[i-1]) - cardOrder.indexOf(values[i]) !== 1) return false;
+
+      }
       return true;
     }
   }
-
-  // 炸弹
-  if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
-  if (cards.length === 2 && cards.some(c => c.value === 'Small') && cards.some(c => c.value === 'Big')) return true;
-
-  // 四带三
-  if (cards.length === 7) {
-    const valueCounts = {};
-    cards.forEach(card => {
-      valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
-    });
-    return Object.values(valueCounts).includes(4);
-  }
-
-  // 顺子
-  if (cards.length >= 5) {
-    const values = cards.map(c => c.value);
-    if (values.includes('2') || values.includes('Small') || values.includes('Big')) return false;
-    for (let i = 1; i < values.length; i++) {
-      if (cardOrder.indexOf(values[i]) - cardOrder.indexOf(values[i-1]) !== 1) return false;
-    }
-    return true;
-  }
-
-
-  
 
   return false;
 }

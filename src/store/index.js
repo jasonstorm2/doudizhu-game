@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
-import { validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
+import { canPass, validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
 
 
 // 辅助函数
@@ -75,18 +75,19 @@ export default createStore({
       const player = state.players[playerIndex];
       state.playedCards = [...player.selectedCards];
       state.lastPlayedCards = [...player.selectedCards];
-      state.lastValidPlay = [...player.selectedCards];
+      state.lastValidPlay = [...player.selectedCards].map(card => ({...card, playerIndex}));
       player.cards = player.cards.filter(card => !card.selected).sort(compareCards);
       player.selectedCards = [];
       state.currentPlayer = (state.currentPlayer + 1) % 3;
       state.passCount = 0;
     },
+
     PASS_PLAY(state) {
       state.currentPlayer = (state.currentPlayer + 1) % 3;
       state.passCount++;
       if (state.passCount === 2) {
-        state.lastPlayedCards = null;
         state.passCount = 0;
+        // 不要设置 lastPlayedCards 为 null
       }
     },
     SET_WINNER(state, playerIndex) {
@@ -171,8 +172,11 @@ export default createStore({
     getLastValidPlay: (state) => {
       return state.lastValidPlay;
     },
-    canPass: (state) => {
-      return state.lastPlayedCards !== null;
+
+    canPass: (state) => (playerIndex) => {
+      const playerCards = state.players[playerIndex].cards;
+      const lastPlayedCards = state.lastPlayedCards;
+      return canPass(playerCards, lastPlayedCards);
     }
   }
 });

@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { canPass, validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay,hasGreaterCards } from '../api/gameApi.js';
 
 
 // 辅助函数
@@ -45,7 +45,8 @@ export default createStore({
     lastValidPlay: null,
     passCount: 0,
     winner: null,
-    lastValidPlayPlayer: null,
+    lastValidPlayPlayer: null, // 记录最后一个有效出牌的玩家
+    currentRoundStartPlayer: null, // 记录当前小轮的首发玩家
   },
 
   mutations: {
@@ -74,23 +75,31 @@ export default createStore({
     },
     PLAY_CARDS(state, playerIndex) {
       const player = state.players[playerIndex];
-      state.playedCards = [...player.selectedCards];
-      state.lastPlayedCards = [...player.selectedCards];
-      state.lastValidPlay = [...player.selectedCards].map(card => ({...card, playerIndex}));
-      state.lastValidPlayPlayer = playerIndex;
-      player.cards = player.cards.filter(card => !card.selected).sort(compareCards);
-      player.selectedCards = [];
-      state.currentPlayer = (state.currentPlayer + 1) % 3;
-      state.passCount = 0;
+      if (player.selectedCards.length > 0 && validateCardPattern(player.selectedCards)) {
+        state.playedCards = [...player.selectedCards];
+        state.lastPlayedCards = [...player.selectedCards];
+        state.lastValidPlayPlayer = playerIndex;
+        player.cards = player.cards.filter(card => !card.selected);
+        player.selectedCards = [];
+        state.currentPlayer = (state.currentPlayer + 1) % 3;
+        state.passCount = 0;
+    
+        // 如果其他两名玩家都没有牌，开始新的小轮
+        if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
+            state.players[(playerIndex + 2) % 3].cards.length === 0) {
+          state.currentRoundStartPlayer = playerIndex;
+        }
+      }
     },
 
     PASS_PLAY(state) {
       state.passCount++;
       if (state.passCount === 2) {
-        // 两家都过牌，开始新的一小局
+        // 两家都过牌，最后出牌的玩家成为新小轮的首发玩家
         state.passCount = 0;
-        state.lastPlayedCards = null;
         state.currentPlayer = state.lastValidPlayPlayer;
+        state.currentRoundStartPlayer = state.lastValidPlayPlayer;
+        state.lastPlayedCards = null;
       } else {
         state.currentPlayer = (state.currentPlayer + 1) % 3;
       }
@@ -179,12 +188,21 @@ export default createStore({
     },
 
     canPass: (state) => (playerIndex) => {
-      // 如果是新一小局的首发玩家，不能过牌
-      if (state.lastPlayedCards === null) {
+      const playerCards = state.players[playerIndex].cards;
+      const lastPlayedCards = state.lastPlayedCards;
+      
+      // 如果是小轮的首发玩家，不能过牌
+      if (playerIndex === state.currentRoundStartPlayer) {
         return false;
       }
+      
+      // 如果玩家没有大于上家的牌，可以过牌
+      return !hasGreaterCards(playerCards, lastPlayedCards);
+    },
+  
+    canPlay: (state) => (playerIndex) => {
       const playerCards = state.players[playerIndex].cards;
-      return canPass(playerCards, state.lastPlayedCards);
+      return playerCards.length > 0;
     }
   }
 });

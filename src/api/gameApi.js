@@ -217,3 +217,18 @@ function getCombinations(cards, k) {
 
   return [...combosWithFirst, ...combosWithoutFirst];
 }
+
+export function hasGreaterCards(playerCards, lastPlayedCards) {
+  if (!lastPlayedCards || lastPlayedCards.length === 0) return true;
+
+  for (let i = 1; i <= playerCards.length; i++) {
+    const combinations = getCombinations(playerCards, i);
+    for (const combo of combinations) {
+      if (validateCardPattern(combo) && isGreaterThanLastPlay(combo, lastPlayedCards)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}

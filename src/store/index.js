@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, isGreaterThanLastPlay,hasGreaterCards } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
 
 
 // 辅助函数
@@ -8,11 +8,13 @@ function createDeck() {
   const suits = ['♠', '♥', '♣', '♦'];
   const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
   let deck = suits.flatMap(suit => values.map(value => ({ suit, value, selected: false })));
+  //大小鬼，特殊的牌型定义
   deck.push({ suit: 'Joker', value: 'Small', selected: false });
   deck.push({ suit: 'Joker', value: 'Big', selected: false });
   return deck;
 }
 
+//给玩家的手牌排序
 function compareCards(a, b) {
   const order = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
   if (a.suit === 'Joker' && b.suit === 'Joker') {
@@ -23,6 +25,7 @@ function compareCards(a, b) {
   return order.indexOf(a.value) - order.indexOf(b.value);
 }
 
+//打乱牌
 function shuffleDeck(deck) {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -185,19 +188,6 @@ export default createStore({
     },
     getLastValidPlay: (state) => {
       return state.lastValidPlay;
-    },
-
-    canPass: (state) => (playerIndex) => {
-      const playerCards = state.players[playerIndex].cards;
-      const lastPlayedCards = state.lastPlayedCards;
-      
-      // 如果是小轮的首发玩家，不能过牌
-      if (playerIndex === state.currentRoundStartPlayer) {
-        return false;
-      }
-      
-      // 如果玩家没有大于上家的牌，可以过牌
-      return !hasGreaterCards(playerCards, lastPlayedCards);
     },
   
     canPlay: (state) => (playerIndex) => {

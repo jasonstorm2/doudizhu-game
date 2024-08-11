@@ -8,7 +8,7 @@ const cardOrder = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', 
 function compareCards(a, b) {
   return cardOrder.indexOf(a.value) - cardOrder.indexOf(b.value);
 }
-
+//牌型是否正确
 export function validateCardPattern(cards) {
   if (cards.length === 0) return false;
   
@@ -307,7 +307,7 @@ export function canPass(playerCards, lastPlayedCards, isFirstPlayer) {
     }
   }
 
-  // 检查玩家是否有大于上家的牌
+  // 除了以上之外，检查玩家是否有大于上家的牌
   const lastPattern = getCardPattern(lastPlayedCards);
   for (let i = 1; i <= playerCards.length; i++) {
     const combinations = getCombinations(playerCards, i);

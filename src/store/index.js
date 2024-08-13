@@ -1,6 +1,7 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay,sortCards } from '../api/gameApi.js';
+
 
 
 // 辅助函数
@@ -69,6 +70,7 @@ export default createStore({
       
       if (card.selected) {
         player.selectedCards.push(card);
+        player.selectedCards = sortCards(player.selectedCards);
       } else {
         const index = player.selectedCards.findIndex(c => c.value === card.value && c.suit === card.suit);
         if (index !== -1) {
@@ -141,6 +143,8 @@ export default createStore({
     },
     playCards({ commit, state, dispatch }, playerIndex) {
       const selectedCards = state.players[playerIndex].selectedCards;
+      sortCards(selectedCards);
+      
       if (validateCardPattern(selectedCards)) {
         if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
           commit('PLAY_CARDS', playerIndex);

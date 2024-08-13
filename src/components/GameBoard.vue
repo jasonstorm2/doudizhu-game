@@ -47,7 +47,7 @@ import StartScreen from './StartScreen.vue';
 import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
 import VictoryScreen from './VictoryScreen.vue';
-import { validateCardPattern, isGreaterThanLastPlay, canPass } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay, canPass,sortCards } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
 
 import { ref, onMounted } from 'vue';
@@ -117,9 +117,10 @@ export default {
       store.dispatch('selectCard', { playerIndex, cardIndex });
 
     const handlePlayCards = (playerIndex) => {
-      const selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
+      let selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
       if (validateCardPattern(selectedCards)) {
         if (!lastPlayedCards.value || isGreaterThanLastPlay(selectedCards, lastPlayedCards.value)) {
+          selectedCards = sortCards(selectedCards);
           store.dispatch('playCards', playerIndex);
         } else {
           // 使用这行

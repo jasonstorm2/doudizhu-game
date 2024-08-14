@@ -74,7 +74,7 @@ export default {
     const gameState = computed(() => store.state.gameState);
     const players = computed(() => store.state.players);
     const currentPlayer = computed(() => store.state.currentPlayer);
-    const playedCards = computed(() => store.state.playedCards);
+    let playedCards = computed(() => store.state.playedCards);
     const lastPlayedCards = computed(() => store.state.lastPlayedCards);
     const winner = computed(() => store.state.winner);
     const backgroundMusic = ref(null);

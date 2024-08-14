@@ -82,6 +82,7 @@ export default createStore({
       const player = state.players[playerIndex];
       if (player.selectedCards.length > 0 && validateCardPattern(player.selectedCards)) {
         state.playedCards = [...player.selectedCards];
+        sortCards(state.playedCards);
         state.lastPlayedCards = [...player.selectedCards];
         state.lastValidPlayPlayer = playerIndex;
         player.cards = player.cards.filter(card => !card.selected);

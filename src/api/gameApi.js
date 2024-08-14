@@ -13,7 +13,7 @@ export function validateCardPattern(cards) {
   if (cards.length === 0) return false;
 
   // 对牌进行排序
-  cards.sort((a, b) => compareCards(b, a));
+  sortCards(cards);
 
   // 单牌
   if (cards.length === 1) return true;
@@ -359,6 +359,10 @@ function hasNormalBomb(cards) {
 
 // 检查玩家是否有大于上家的牌
 function hasGreaterCards(playerCards, lastPlayedCards) {
+  if (!Array.isArray(lastPlayedCards) || lastPlayedCards.length === 0) {
+    console.error('Invalid lastPlayedCards:', lastPlayedCards);
+    return false;
+  }
   const lastCardType = getCardPattern(lastPlayedCards);
   let res = false;
   switch (lastCardType) {
@@ -520,6 +524,10 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
 
 
   function compareCards(card1, card2) {
+    if (!card1 || !card2 || !card1.value || !card2.value) {
+      console.error('Invalid card in compareCards:', card1, card2);
+      return 0; // 或者抛出一个错误
+    }
     return cardOrder.indexOf(card1.value) - cardOrder.indexOf(card2.value);
   }
 
@@ -559,6 +567,10 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
   // 判断是否有更大的对
   function hasBiggerPair(playerCards, lastPair) {
     const pairs = findPairs(playerCards);
+    if (pairs.length === 0) {
+      return false;
+    }
+
     return pairs.some(pair => compareCards(pair[0], lastPair[0]) > 0);
   }
 
@@ -590,26 +602,37 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
   //发现三张同样的牌
   function findTriple(cards) {
     const triple = [];
-    // 首先检查cards是否至少有两张牌
+    // 首先检查cards是否至少有三张牌
     if (cards.length < 3) {
-      return triple; // 如果少于两张牌，直接返回空数组
+      return triple; // 如果少于三张牌，直接返回空数组
     }
     for (let i = 0; i < cards.length - 2; i++) {
-      // 如果当前卡牌和下一张卡牌相同，则为一对
-      if (cards[i].value === cards[i + 1].value && cards[i + 1].value === cards[i + 2].value) {
-        triple.push([cards[i], cards[i + 1]], cards[i + 2]);
-        // 跳过下一张卡牌，因为它已经被配对了
+      // 如果当前卡牌和接下来的两张卡牌值相同，则为三张
+      if (cards[i].value === cards[i + 1].value && cards[i].value === cards[i + 2].value) {
+        triple.push([cards[i], cards[i + 1], cards[i + 2]]);
+        // 跳过接下来的两张卡牌，因为它们已经被使用了
         i += 2;
       }
     }
     return triple;
   }
 
+
   // 判断是否有更大的三带一
   function hasBiggerTrioWithSingle(playerCards, lastTrioWithSingle) {
+    if (!Array.isArray(lastTrioWithSingle) || lastTrioWithSingle.length < 4) {
+      console.error('Invalid lastTrioWithSingle:', lastTrioWithSingle);
+      return false;
+    }
     sortCards(lastTrioWithSingle);
 
     const trios = findTriple(playerCards);
+    // 如果没有找到三张相同的牌，直接返回 false
+    if (trios.length === 0) {
+      console.error('玩家没有三代一啦', lastTrioWithSingle);
+      return false;
+    }
+
     const lastTrioValue = lastTrioWithSingle[0].value; // 假设三带一的前三张是三张相同的牌
 
     return trios.some(trio => {
@@ -632,6 +655,11 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
 
     const lastTrioValue = lastTrioWithPair[0].value;
     const trios = findTriple(playerCards);
+    // 如果没有找到三张相同的牌，直接返回 false
+    if (trios.length === 0) {
+      return false;
+    }
+
 
     return trios.some(trio => {
       if (compareCards(trio[0], { value: lastTrioValue }) > 0) {
@@ -652,18 +680,18 @@ export function sortCards(cards) {
   // 首先计算每个值的出现次数
   const valueCounts = {};
   cards.forEach(card => {
-      valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
+    valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
   });
 
   // 定义牌的顺序（从小到大）
   const cardOrder = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
   // 自定义排序函数
   return cards.sort((a, b) => {
-      // 首先比较牌的数量（数量多的排前面），如果a的数量多，那么值为负，那么负值则a排在前面
-      const countDiff = valueCounts[b.value] - valueCounts[a.value];
-      if (countDiff !== 0) return countDiff;
+    // 首先比较牌的数量（数量多的排前面），如果a的数量多，那么值为负，那么负值则a排在前面
+    const countDiff = valueCounts[b.value] - valueCounts[a.value];
+    if (countDiff !== 0) return countDiff;
 
-      // 如果数量相同，则按照牌的大小排序
-      return cardOrder.indexOf(a.value) - cardOrder.indexOf(b.value);
+    // 如果数量相同，则按照牌的大小排序
+    return cardOrder.indexOf(a.value) - cardOrder.indexOf(b.value);
   });
 }

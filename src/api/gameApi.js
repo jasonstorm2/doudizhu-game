@@ -546,17 +546,23 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
 
   function findAllPossibleStraights(cards, length) {
     const straights = [];
-
-    for (let i = 0; i <= cards.length - length; i++) {
-      const potentialStraight = cards.slice(i, i + length);
+    const uniqueValues = [...new Set(cards.map(card => card.value))];
+    const uniqueCards = uniqueValues.map(value => cards.find(card => card.value === value));
+  
+    for (let i = 0; i <= uniqueCards.length - length; i++) {
+      const potentialStraight = uniqueCards.slice(i, i + length);
       if (isStraight(potentialStraight)) {
-        straights.push(potentialStraight);
+        // 找到原始手牌中对应的牌
+        const originalStraight = potentialStraight.map(card => 
+          cards.find(c => c.value === card.value && c.suit === card.suit)
+        );
+        straights.push(originalStraight);
       }
     }
-
+  
     return straights;
   }
-
+  
 
 
   // 以下是各种牌型的具体判断函数

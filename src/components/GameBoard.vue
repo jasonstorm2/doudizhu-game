@@ -19,8 +19,8 @@
           <div class="player player-2">
             <player-hand :cards="players[2].cards" :isCurrentPlayer="currentPlayer === 2"
               @select-card="(cardIndex) => handleSelectCard(2, cardIndex)" />
-            <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">出牌</button>
-            <button @click="handlePass(2)" :disabled="currentPlayer !== 2 || !canPass(2)">过牌</button>
+            <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">AI 出牌</button>
+            <button @click="handlePass(2)" :disabled="currentPlayer !== 2 || !canPass(2)">AI 过牌</button>
           </div>
         </div>
 
@@ -41,16 +41,14 @@
 </template>
 
 <script>
-import { computed } from 'vue';
 import { useStore } from 'vuex';
 import StartScreen from './StartScreen.vue';
 import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
 import VictoryScreen from './VictoryScreen.vue';
-import { validateCardPattern, isGreaterThanLastPlay, canPass,sortCards } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay, canPass, sortCards } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
-
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 export default {
   name: 'GameBoard',
@@ -70,6 +68,9 @@ export default {
     });
 
     const store = useStore();
+    const aiPlayDecision = ref(null);
+    const aiThinking = ref(false);
+
     const isMusicPlaying = ref(false);
     const gameState = computed(() => store.state.gameState);
     const players = computed(() => store.state.players);
@@ -116,21 +117,123 @@ export default {
     const handleSelectCard = (playerIndex, cardIndex) =>
       store.dispatch('selectCard', { playerIndex, cardIndex });
 
-    const handlePlayCards = (playerIndex) => {
-      let selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
-      if (validateCardPattern(selectedCards)) {
-        if (!lastPlayedCards.value || isGreaterThanLastPlay(selectedCards, lastPlayedCards.value)) {
-          selectedCards = sortCards(selectedCards);
-          store.dispatch('playCards', playerIndex);
-        } else {
-          // 使用这行
-          EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
-        }
+    const handlePlayCards = async (playerIndex) => {
+      if (playerIndex === 2) {
+        // 如果是 player2，则调用 AI 出牌逻辑
+        console.log("ai 开始出牌"); // 输出到 VSCode 控制台
+
+        await handleAIPlay();
       } else {
-        // 使用这行
-        EventBus.emit('show-alert', '无效的牌型啦！');
+        // 人类玩家的出牌逻辑保持不变
+        let selectedCards = players.value[playerIndex].cards.filter(card => card.selected);
+        if (validateCardPattern(selectedCards)) {
+          if (!lastPlayedCards.value || isGreaterThanLastPlay(selectedCards, lastPlayedCards.value)) {
+            selectedCards = sortCards(selectedCards);
+            store.dispatch('playCards', playerIndex);
+          } else {
+            EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
+          }
+        } else {
+          EventBus.emit('show-alert', '无效的牌型啦！');
+        }
       }
     };
+
+    //与ai通信
+    // 创建一个数组来存储对话历史
+    const conversationHistory = ref([
+      { "role": "system", "content": "你是一个斗地主游戏中的AI玩家。你需要根据当前的游戏状态做出决策。" }
+    ]);
+    const handleAIPlay = async () => {
+      try {
+        aiThinking.value = true;
+        const openAIConfig = {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx' // 替换为您的 API Key
+          },
+          baseURL: 'https://api.moonshot.cn/v1'
+        };
+
+        // 创建新的用户消息
+        const newUserMessage = {
+          "role": "user",
+          "content": `游戏状态：${JSON.stringify({
+            playerCards: players.value[2].cards,
+            lastPlayedCards: lastPlayedCards.value,
+            gameState: store.state
+          })}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。`
+        };
+
+        // 将新的用户消息添加到历史记录中
+        conversationHistory.value.push(newUserMessage);
+
+        // 假设您有一个 API 来与 GPT 通信
+        const completion = await fetch(`${openAIConfig.baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: openAIConfig.headers,
+          body: JSON.stringify({
+            model: "moonshot-v1-32k",
+            messages: conversationHistory.value,
+            temperature: 0.3,
+          })
+        });
+
+        const reader = completion.body.getReader();
+        const decoder = new TextDecoder();
+        let aiDecision = '';
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          const parsedLines = lines
+            .map(line => line.replace(/^data: /, '').trim())
+            .filter(line => line !== '' && line !== '[DONE]')
+            .map(line => JSON.parse(line));
+
+          for (const parsedLine of parsedLines) {
+            const { choices } = parsedLine;
+            const { delta } = choices[0];
+            if (delta.content) {
+              aiDecision += delta.content;
+              // 可以在这里更新UI，显示AI正在思考的过程
+              console.log('AI 思考过程:', delta.content); // 输出到 VSCode 控制台
+            }
+          }
+        }
+        console.log('AI 最终决策:', aiDecision); // 输出完整的 AI 决策
+        // 将 AI 的回复添加到对话历史中
+        conversationHistory.value.push({
+          "role": "assistant",
+          "content": aiDecision
+        });
+
+        // 解析AI决策
+        const parsedDecision = JSON.parse(aiDecision);
+        aiPlayDecision.value = parsedDecision;
+
+        // 根据 AI 的出牌决策，更新玩家2的选择的牌
+        players.value[2].cards.forEach(card => {
+          card.selected = parsedDecision.selectedCards.some(
+            aiCard => aiCard.suit === card.suit && aiCard.value === card.value
+          );
+        });
+        // 执行出牌操作
+        if (parsedDecision.action === 'play') {
+          store.dispatch('playCards', 2);
+        } else if (parsedDecision.action === 'pass') {
+          handlePass(2);
+        }
+      } catch (error) {
+        console.error('AI play error:', error);
+        EventBus.emit('show-alert', 'AI 出牌出错，请重试！');
+      } finally {
+        aiThinking.value = false;
+      }
+    };
+
 
     const handlePass = (playerIndex) => {
       if (canPass(players.value[playerIndex].cards, lastPlayedCards.value)) {
@@ -156,6 +259,8 @@ export default {
       handleSelectCard,
       handlePlayCards,
       handlePass,
+      // 确保返回新添加的方法
+      handleAIPlay,
       canPass: (playerIndex) => canPass(players.value[playerIndex].cards, lastPlayedCards.value)
     };
   },

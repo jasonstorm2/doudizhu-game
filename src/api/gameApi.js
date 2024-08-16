@@ -701,3 +701,7 @@ export function sortCards(cards) {
     return cardOrder.indexOf(a.value) - cardOrder.indexOf(b.value);
   });
 }
+
+export function convertCards(cards) {
+  return cards.map(card => card.value);
+}

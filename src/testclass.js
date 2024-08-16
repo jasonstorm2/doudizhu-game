@@ -1,34 +1,46 @@
-const playerCards = [
-    { suit: '♦', value: '5', selected: false },
-    { suit: '♦', value: '3', selected: false },
-    { suit: '♦', value: '3', selected: false },
-    { suit: '♦', value: '3', selected: false },
-    { suit: '♦', value: '4', selected: false },
-    { suit: '♦', value: '9', selected: false },
-    { suit: '♦', value: '4', selected: false },
-    { suit: '♦', value: '4', selected: false },
-
-];
-
-function sortCards(cards) {
-    // 首先计算每个值的出现次数
-    const valueCounts = {};
-    cards.forEach(card => {
-        valueCounts[card.value] = (valueCounts[card.value] || 0) + 1;
-    });
-
-    // 定义牌的顺序（从小到大）
-    const cardOrder = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
-    // 自定义排序函数
-    return cards.sort((a, b) => {
-        // 首先比较牌的数量（数量多的排前面），如果a的数量多，那么值为负，那么负值则a排在前面
-        const countDiff = valueCounts[b.value] - valueCounts[a.value];
-        if (countDiff !== 0) return countDiff;
-
-        // 如果数量相同，则按照牌的大小排序
-        return cardOrder.indexOf(a.value) - cardOrder.indexOf(b.value);
-    });
-}
-
-const sortedCards = sortCards(playerCards);
-console.log(sortedCards);
+function extractResponseFromAIReply(aiReplyText) {
+    // 使用正则表达式查找 JSON 结构
+    const jsonMatch = aiReplyText.match(/```json\s*([\s\S]*?)\s*```/);
+    
+    if (jsonMatch && jsonMatch[1]) {
+      try {
+        // 解析 JSON 字符串
+        const responseObject = JSON.parse(jsonMatch[1]);
+        
+        // 提取 outPut 数组
+        const outPut = responseObject.responseFormat.outPut;
+        
+        return outPut;
+      } catch (error) {
+        console.error("解析 JSON 时出错:", error);
+        return null;
+      }
+    } else {
+      console.error("未找到有效的 JSON 结构");
+      return null;
+    }
+  }
+  
+  // 使用示例
+  const aiReplyText = `AI回复的内容2：根据提供的规则和当前的游戏状态，我们需要考虑以下几点：
+  
+  1. 上个玩家出的是一个单牌4。
+  2. 我们需要出大于4的单牌，或者出炸弹。
+  3. 根据玩家手牌，我们有5、6、7、8、J、Q、K、2和大小王。
+  
+  考虑到我们需要出大于4的单牌，我们可以选择出5。这是一个合法的出牌，因为它是大于4的单牌。
+  
+  出牌格式为JavaScript数组，所以我们的出牌应该是：
+  
+  \`\`\`json
+  {
+    "responseFormat": {
+      "outPut": ["5"]
+    }
+  }
+  \`\`\`
+  
+  因此，我们应该出牌，选择出的牌是5。`;
+  
+  const extractedOutput = extractResponseFromAIReply(aiReplyText);
+  console.log(extractedOutput); // 输出: [5]

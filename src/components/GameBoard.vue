@@ -46,9 +46,10 @@ import StartScreen from './StartScreen.vue';
 import PlayerHand from './PlayerHand.vue';
 import PlayedCards from './PlayedCards.vue';
 import VictoryScreen from './VictoryScreen.vue';
-import { validateCardPattern, isGreaterThanLastPlay, canPass, sortCards } from '../api/gameApi.js';
+import { validateCardPattern, isGreaterThanLastPlay, canPass, sortCards, convertCards } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
 import { ref, computed, onMounted } from 'vue';
+
 
 export default {
   name: 'GameBoard',
@@ -140,44 +141,53 @@ export default {
     };
 
     //与ai通信
-    // 创建一个数组来存储对话历史
     const conversationHistory = ref([
-      { "role": "system", "content": "你是一个斗地主游戏中的AI玩家。你需要根据当前的游戏状态做出决策。" }
+      {
+        "role": "system",
+        "content": "这是'跑得快'纸牌游戏的规则和初始设置：\n\n" +
+          JSON.stringify(store.state.gameInfo, null, 2)
+      }
     ]);
+    const OpenAI = require("openai");
+
+
     const handleAIPlay = async () => {
       try {
         aiThinking.value = true;
-        const openAIConfig = {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx' // 替换为您的 API Key
-          },
-          baseURL: 'https://api.moonshot.cn/v1'
-        };
+
+        const client = new OpenAI({
+          apiKey: "sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx",
+          baseURL: "https://api.moonshot.cn/v1",
+          dangerouslyAllowBrowser: true  // 添加这一行
+        });
 
         // 创建新的用户消息
         const newUserMessage = {
           "role": "user",
           "content": `游戏状态：${JSON.stringify({
-            playerCards: players.value[2].cards,
-            lastPlayedCards: lastPlayedCards.value,
-            gameState: store.state
+            playerCards: convertCards(players.value[2].cards),
+            lastPlayedCards: convertCards(lastPlayedCards.value),
           })}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。`
         };
 
         // 将新的用户消息添加到历史记录中
         conversationHistory.value.push(newUserMessage);
 
-        // 假设您有一个 API 来与 GPT 通信
-        const completion = await fetch(`${openAIConfig.baseURL}/chat/completions`, {
-          method: 'POST',
-          headers: openAIConfig.headers,
-          body: JSON.stringify({
-            model: "moonshot-v1-32k",
-            messages: conversationHistory.value,
-            temperature: 0.3,
-          })
+        // 携带 messages 与 Kimi 大模型对话
+        const completion = await client.chat.completions.create({
+          model: "moonshot-v1-8k",
+          messages: conversationHistory.value,
+          temperature: 0.3,
         });
+
+        // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
+        const assistantMessage = completion.choices[0].message.content;
+
+        console.log("AI回复的内容2：" + assistantMessage)
+        const extractedOutput = extractResponseFromAIReply(assistantMessage);
+        console.log("提取数据："+extractedOutput); 
+
+
 
         const reader = completion.body.getReader();
         const decoder = new TextDecoder();
@@ -233,6 +243,29 @@ export default {
         aiThinking.value = false;
       }
     };
+
+    function extractResponseFromAIReply(aiReplyText) {
+      // 使用正则表达式查找 JSON 结构
+      const jsonMatch = aiReplyText.match(/```json\s*([\s\S]*?)\s*```/);
+
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          // 解析 JSON 字符串
+          const responseObject = JSON.parse(jsonMatch[1]);
+
+          // 提取 outPut 数组
+          const outPut = responseObject.responseFormat.outPut;
+
+          return outPut;
+        } catch (error) {
+          console.error("解析 JSON 时出错:", error);
+          return null;
+        }
+      } else {
+        console.error("未找到有效的 JSON 结构");
+        return null;
+      }
+    }
 
 
     const handlePass = (playerIndex) => {

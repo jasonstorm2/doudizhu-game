@@ -185,7 +185,7 @@ export default {
 
         console.log("AI回复的内容2：" + assistantMessage)
         const extractedOutput = extractResponseFromAIReply(assistantMessage);
-        console.log("提取数据："+extractedOutput); 
+        console.log("提取数据：" + extractedOutput);
 
 
 
@@ -245,27 +245,32 @@ export default {
     };
 
     function extractResponseFromAIReply(aiReplyText) {
-      // 使用正则表达式查找 JSON 结构
-      const jsonMatch = aiReplyText.match(/```json\s*([\s\S]*?)\s*```/);
+      // 使用正则表达式查找出牌部分
+      const formatMatch = aiReplyText.match(/出牌：\s*(\[.*?\])/);
 
-      if (jsonMatch && jsonMatch[1]) {
+      if (formatMatch && formatMatch[1]) {
         try {
-          // 解析 JSON 字符串
-          const responseObject = JSON.parse(jsonMatch[1]);
+          // 解析字符串数组
+          const outPut = JSON.parse(formatMatch[1]);
 
-          // 提取 outPut 数组
-          const outPut = responseObject.responseFormat.outPut;
-
-          return outPut;
+          // 确保结果是数组
+          if (Array.isArray(outPut)) {
+            return outPut;
+          } else {
+            console.error("提取的内容不是数组");
+            return null;
+          }
         } catch (error) {
-          console.error("解析 JSON 时出错:", error);
+          console.error("解析出牌格式时出错:", error);
           return null;
         }
       } else {
-        console.error("未找到有效的 JSON 结构");
+        console.error("未找到有效的出牌格式");
         return null;
       }
     }
+
+
 
 
     const handlePass = (playerIndex) => {

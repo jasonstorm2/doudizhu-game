@@ -157,101 +157,72 @@ export default {
     const handleAIPlay = async () => {
       try {
         aiThinking.value = true;
-        let canGo = false;
-        let isPlay = false;
-
         let retryCount = 0;
-        const maxRetries = 3; // 设置最大重试次数
+        const maxRetries = 3;
 
-        while (!canGo && retryCount < maxRetries) {
-          // 创建新的用户消息
-          const newUserMessage = {
-            "role": "user",
-            "content": `游戏状态：${JSON.stringify({
-              "你目前的手牌": convertCards(players.value[2].cards),
-              "上家出牌": convertCards(lastPlayedCards.value),
-              "玩家出牌历史": store.state.gameInfo.historyInfo.history
-            })}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${retryCount > 0 ? "之前的选择无效，请重新选择。" : ""}`
+        while (retryCount < maxRetries) {
+          const gameState = {
+            "你目前的手牌": convertCards(players.value[2].cards),
+            "上家出牌": convertCards(lastPlayedCards.value),
+            "玩家出牌历史": store.state.gameInfo.historyInfo.history
           };
 
-          let assistantMessage = aiReplyText(newUserMessage);
-          let extractedOutput = extractResponseFromAIReply(assistantMessage);
+          const newUserMessage = {
+            "role": "user",
+            "content": `游戏状态：${JSON.stringify(gameState)}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${retryCount > 0 ? "之前的选择无效，请重新选择。" : ""}`
+          };
+
+          const assistantMessage = await getAIReply(newUserMessage);
+          const extractedOutput = extractResponseFromAIReply(assistantMessage);
           console.log("提取AI的发牌：", extractedOutput);
 
           if (extractedOutput.length === 0) {
-            // 判断是否能过牌
-            let canP = !canPass(2);
-            console.log("是否能过牌:", canP);
-            if (canP) {
-              canGo = true;
+            if (!canPass(2)) {
               handlePass(2);
+              break;
             }
           } else {
-            isPlay = true;
-            // 判断是否牌型正确
-            extractedOutput = extractedOutput.map(value => ({ value, selected: false }));
-            console.log("转型后的牌", extractedOutput);
-            let validate = validateCardPattern(extractedOutput);
-            let isBigger = isGreaterThanLastPlay(extractedOutput, lastPlayedCards.value);
-            console.log("上家发的牌", lastPlayedCards.value);
-            console.log("牌型是否正确:", validate);
-            console.log("是否大于上家:", isBigger);
-
-            if (validate && isBigger) {
-              canGo = true;
-            } else {
-              console.log("牌型不正确请重新出牌");
-            }
-          }
-
-          if (canGo) {
-            // AI 成功出牌的逻辑
-            conversationHistory.value.push({
-              "role": "assistant",
-              "content": assistantMessage
-            });
-
-            if (isPlay) {
-              const selectionCount = new Map();
-              extractedOutput.forEach(aiCard => {
-                selectionCount.set(aiCard.value, (selectionCount.get(aiCard.value) || 0) + 1);
-              });
-              console.log("selectionCount map 内容:", selectionCount);
-
-              players.value[2].cards.forEach(card => {
-                if (selectionCount.has(card.value) && selectionCount.get(card.value) > 0) {
-                  console.log("选择了：", card.value);
-                  card.selected = true;
-                  players.value[2].selectedCards.push(card);
-                  selectionCount.set(card.value, selectionCount.get(card.value) - 1);
-                } else {
-                  card.selected = false;
-                }
-              });
-              players.value[2].selectedCards = sortCards(players.value[2].selectedCards);
-
-              // 使用 await 等待 dispatch 完成
-              await store.dispatch('playCards', 2);
-              // 更新组件状态
-              players.value = [...players.value]; // 触发 Vue 的响应式更新
-            }
-
-          } else {
-            retryCount++;
-            if (retryCount >= maxRetries) {
-              console.error('AI 多次尝试失败，无法正确出牌');
-              EventBus.emit('show-alert', 'AI 出牌多次失败，请检查游戏逻辑！');
+            const formattedOutput = extractedOutput.map(value => ({ value, selected: false }));
+            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value)) {
+              await playAICards(formattedOutput, assistantMessage);
               break;
             }
           }
-        }
 
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error('AI 多次尝试失败，无法正确出牌');
+            EventBus.emit('show-alert', 'AI 出牌多次失败，请检查游戏逻辑！');
+          }
+        }
       } catch (error) {
         console.error('AI play error:', error);
         EventBus.emit('show-alert', 'AI 出牌出错，请重试！');
       } finally {
         aiThinking.value = false;
       }
+    };
+
+    const playAICards = async (formattedOutput, assistantMessage) => {
+      conversationHistory.value.push({ "role": "assistant", "content": assistantMessage });
+      // 确保在这里初始化 selectionCount
+      const selectionCount2 = new Map();
+
+      const selectionCount = new Map(formattedOutput.map(card => [card.value, (selectionCount2.get(card.value) || 0) + 1]));
+
+      players.value[2].cards.forEach(card => {
+        if (selectionCount.get(card.value) > 0) {
+          card.selected = true;
+          players.value[2].selectedCards.push(card);
+          selectionCount.set(card.value, selectionCount.get(card.value) - 1);
+        } else {
+          card.selected = false;
+        }
+      });
+
+      players.value[2].selectedCards = sortCards(players.value[2].selectedCards);
+      await store.dispatch('playCards', 2);
+      players.value = [...players.value];
     };
 
 
@@ -304,7 +275,7 @@ export default {
       }
     }
 
-    const aiReplyText = async (newUserMessage) => {
+    const getAIReply = async (newUserMessage) => {
       conversationHistory.value.push(newUserMessage);
       console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2));
 
@@ -314,9 +285,11 @@ export default {
         messages: conversationHistory.value,
         temperature: 0.3,
       });
+      let content = completion.choices[0].message.content;
       // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
-      return completion.choices[0].message.content;
+      return content;
     }
+
 
 
 

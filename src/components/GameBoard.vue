@@ -176,10 +176,9 @@ export default {
           const extractedOutput = extractResponseFromAIReply(assistantMessage);
           console.log("提取AI的发牌：", extractedOutput);
 
-          if (extractedOutput.length === 0) {
+          if (extractedOutput.length === 0 || extractedOutput == null) {
             if (!canPass(2)) {
               handlePass(2);
-              break;
             }
           } else {
             const formattedOutput = extractedOutput.map(value => ({ value, selected: false }));
@@ -205,10 +204,15 @@ export default {
 
     const playAICards = async (formattedOutput, assistantMessage) => {
       conversationHistory.value.push({ "role": "assistant", "content": assistantMessage });
-      // 确保在这里初始化 selectionCount
-      const selectionCount2 = new Map();
+      console.log("ai的策略：", assistantMessage);
 
-      const selectionCount = new Map(formattedOutput.map(card => [card.value, (selectionCount2.get(card.value) || 0) + 1]));
+      // 确保在这里初始化 selectionCount
+      const selectionCount = new Map();
+
+      formattedOutput.forEach(card => {
+        selectionCount.set(card.value, (selectionCount.get(card.value) || 0) + 1);
+      });
+
 
       players.value[2].cards.forEach(card => {
         if (selectionCount.get(card.value) > 0) {
@@ -281,7 +285,7 @@ export default {
 
       // 携带 messages 与 Kimi 大模型对话
       const completion = await client.chat.completions.create({
-        model: "moonshot-v1-8k",
+        model: "moonshot-v1-32k",
         messages: conversationHistory.value,
         temperature: 0.3,
       });

@@ -548,21 +548,21 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
     const straights = [];
     const uniqueValues = [...new Set(cards.map(card => card.value))];
     const uniqueCards = uniqueValues.map(value => cards.find(card => card.value === value));
-  
+
     for (let i = 0; i <= uniqueCards.length - length; i++) {
       const potentialStraight = uniqueCards.slice(i, i + length);
       if (isStraight(potentialStraight)) {
         // 找到原始手牌中对应的牌
-        const originalStraight = potentialStraight.map(card => 
+        const originalStraight = potentialStraight.map(card =>
           cards.find(c => c.value === card.value && c.suit === card.suit)
         );
         straights.push(originalStraight);
       }
     }
-  
+
     return straights;
   }
-  
+
 
 
   // 以下是各种牌型的具体判断函数
@@ -703,5 +703,11 @@ export function sortCards(cards) {
 }
 
 export function convertCards(cards) {
-  return cards.map(card => card.value);
+  // 检查 cards 是否为数组，这也会处理 null 和 undefined 的情况
+  if (!Array.isArray(cards) || cards.length === 0) {
+    return [];
+  }
+  
+  // 原有的转换逻辑
+  return cards.map(card => card?.value).filter(value => value !== undefined);
 }

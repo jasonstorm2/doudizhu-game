@@ -41,14 +41,14 @@
 </template>
 
 <script>
+import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'vuex';
-import StartScreen from './StartScreen.vue';
-import PlayerHand from './PlayerHand.vue';
-import PlayedCards from './PlayedCards.vue';
-import VictoryScreen from './VictoryScreen.vue';
-import { validateCardPattern, isGreaterThanLastPlay, canPass, sortCards, convertCards } from '../api/gameApi.js';
+import { canPass, convertCards, isGreaterThanLastPlay, sortCards, validateCardPattern } from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
-import { ref, computed, onMounted } from 'vue';
+import PlayedCards from './PlayedCards.vue';
+import PlayerHand from './PlayerHand.vue';
+import StartScreen from './StartScreen.vue';
+import VictoryScreen from './VictoryScreen.vue';
 
 
 export default {
@@ -69,7 +69,6 @@ export default {
     });
 
     const store = useStore();
-    const aiPlayDecision = ref(null);
     const aiThinking = ref(false);
 
     const isMusicPlaying = ref(false);
@@ -144,98 +143,109 @@ export default {
     const conversationHistory = ref([
       {
         "role": "system",
-        "content": "这是'跑得快'纸牌游戏的规则和初始设置：\n\n" +
-          JSON.stringify(store.state.gameInfo, null, 2)
+        "content": "这是'跑得快'纸牌游戏的规则和初始设置：\n\n" + JSON.stringify(store.state.gameInfo, null, 2)
       }
     ]);
     const OpenAI = require("openai");
 
+    const client = new OpenAI({
+      apiKey: "sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx",
+      baseURL: "https://api.moonshot.cn/v1",
+      dangerouslyAllowBrowser: true  // 添加这一行
+    });
 
     const handleAIPlay = async () => {
       try {
         aiThinking.value = true;
+        let canGo = false;
+        let isPlay = false;
 
-        const client = new OpenAI({
-          apiKey: "sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx",
-          baseURL: "https://api.moonshot.cn/v1",
-          dangerouslyAllowBrowser: true  // 添加这一行
-        });
+        let retryCount = 0;
+        const maxRetries = 3; // 设置最大重试次数
 
-        // 创建新的用户消息
-        const newUserMessage = {
-          "role": "user",
-          "content": `游戏状态：${JSON.stringify({
-            playerCards: convertCards(players.value[2].cards),
-            lastPlayedCards: convertCards(lastPlayedCards.value),
-          })}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。`
-        };
+        while (!canGo && retryCount < maxRetries) {
+          // 创建新的用户消息
+          const newUserMessage = {
+            "role": "user",
+            "content": `游戏状态：${JSON.stringify({
+              "你目前的手牌": convertCards(players.value[2].cards),
+              "上家出牌": convertCards(lastPlayedCards.value),
+              "玩家出牌历史": store.state.gameInfo.historyInfo.history
+            })}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${retryCount > 0 ? "之前的选择无效，请重新选择。" : ""}`
+          };
 
-        // 将新的用户消息添加到历史记录中
-        conversationHistory.value.push(newUserMessage);
+          let assistantMessage = aiReplyText(newUserMessage);
+          let extractedOutput = extractResponseFromAIReply(assistantMessage);
+          console.log("提取AI的发牌：", extractedOutput);
 
-        // 携带 messages 与 Kimi 大模型对话
-        const completion = await client.chat.completions.create({
-          model: "moonshot-v1-8k",
-          messages: conversationHistory.value,
-          temperature: 0.3,
-        });
+          if (extractedOutput.length === 0) {
+            // 判断是否能过牌
+            let canP = !canPass(2);
+            console.log("是否能过牌:", canP);
+            if (canP) {
+              canGo = true;
+              handlePass(2);
+            }
+          } else {
+            isPlay = true;
+            // 判断是否牌型正确
+            extractedOutput = extractedOutput.map(value => ({ value, selected: false }));
+            console.log("转型后的牌", extractedOutput);
+            let validate = validateCardPattern(extractedOutput);
+            let isBigger = isGreaterThanLastPlay(extractedOutput, lastPlayedCards.value);
+            console.log("上家发的牌", lastPlayedCards.value);
+            console.log("牌型是否正确:", validate);
+            console.log("是否大于上家:", isBigger);
 
-        // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
-        const assistantMessage = completion.choices[0].message.content;
+            if (validate && isBigger) {
+              canGo = true;
+            } else {
+              console.log("牌型不正确请重新出牌");
+            }
+          }
 
-        console.log("AI回复的内容2：" + assistantMessage)
-        const extractedOutput = extractResponseFromAIReply(assistantMessage);
-        console.log("提取数据：" + extractedOutput);
+          if (canGo) {
+            // AI 成功出牌的逻辑
+            conversationHistory.value.push({
+              "role": "assistant",
+              "content": assistantMessage
+            });
 
+            if (isPlay) {
+              const selectionCount = new Map();
+              extractedOutput.forEach(aiCard => {
+                selectionCount.set(aiCard.value, (selectionCount.get(aiCard.value) || 0) + 1);
+              });
+              console.log("selectionCount map 内容:", selectionCount);
 
+              players.value[2].cards.forEach(card => {
+                if (selectionCount.has(card.value) && selectionCount.get(card.value) > 0) {
+                  console.log("选择了：", card.value);
+                  card.selected = true;
+                  players.value[2].selectedCards.push(card);
+                  selectionCount.set(card.value, selectionCount.get(card.value) - 1);
+                } else {
+                  card.selected = false;
+                }
+              });
+              players.value[2].selectedCards = sortCards(players.value[2].selectedCards);
 
-        const reader = completion.body.getReader();
-        const decoder = new TextDecoder();
-        let aiDecision = '';
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          const parsedLines = lines
-            .map(line => line.replace(/^data: /, '').trim())
-            .filter(line => line !== '' && line !== '[DONE]')
-            .map(line => JSON.parse(line));
+              // 使用 await 等待 dispatch 完成
+              await store.dispatch('playCards', 2);
+              // 更新组件状态
+              players.value = [...players.value]; // 触发 Vue 的响应式更新
+            }
 
-          for (const parsedLine of parsedLines) {
-            const { choices } = parsedLine;
-            const { delta } = choices[0];
-            if (delta.content) {
-              aiDecision += delta.content;
-              // 可以在这里更新UI，显示AI正在思考的过程
-              console.log('AI 思考过程:', delta.content); // 输出到 VSCode 控制台
+          } else {
+            retryCount++;
+            if (retryCount >= maxRetries) {
+              console.error('AI 多次尝试失败，无法正确出牌');
+              EventBus.emit('show-alert', 'AI 出牌多次失败，请检查游戏逻辑！');
+              break;
             }
           }
         }
-        console.log('AI 最终决策:', aiDecision); // 输出完整的 AI 决策
-        // 将 AI 的回复添加到对话历史中
-        conversationHistory.value.push({
-          "role": "assistant",
-          "content": aiDecision
-        });
 
-        // 解析AI决策
-        const parsedDecision = JSON.parse(aiDecision);
-        aiPlayDecision.value = parsedDecision;
-
-        // 根据 AI 的出牌决策，更新玩家2的选择的牌
-        players.value[2].cards.forEach(card => {
-          card.selected = parsedDecision.selectedCards.some(
-            aiCard => aiCard.suit === card.suit && aiCard.value === card.value
-          );
-        });
-        // 执行出牌操作
-        if (parsedDecision.action === 'play') {
-          store.dispatch('playCards', 2);
-        } else if (parsedDecision.action === 'pass') {
-          handlePass(2);
-        }
       } catch (error) {
         console.error('AI play error:', error);
         EventBus.emit('show-alert', 'AI 出牌出错，请重试！');
@@ -244,32 +254,69 @@ export default {
       }
     };
 
+
     function extractResponseFromAIReply(aiReplyText) {
-      // 使用正则表达式查找出牌部分
-      const formatMatch = aiReplyText.match(/出牌：\s*(\[.*?\])/);
+      const startKeyword = "出牌：";
+      let startIndex = aiReplyText.indexOf(startKeyword);
 
-      if (formatMatch && formatMatch[1]) {
-        try {
-          // 解析字符串数组
-          const outPut = JSON.parse(formatMatch[1]);
+      // 如果找不到"出牌："，尝试查找"出牌:"（使用英文冒号）
+      if (startIndex === -1) {
+        startIndex = aiReplyText.indexOf("出牌:");
+      }
 
-          // 确保结果是数组
-          if (Array.isArray(outPut)) {
-            return outPut;
-          } else {
-            console.error("提取的内容不是数组");
-            return null;
-          }
-        } catch (error) {
-          console.error("解析出牌格式时出错:", error);
+      if (startIndex === -1) {
+        console.error("未找到'出牌：'关键词");
+        return null;
+      }
+
+      // 从"出牌："后面开始查找
+      const contentStart = startIndex + startKeyword.length;
+
+      // 查找左方括号 [
+      const leftBracketIndex = aiReplyText.indexOf("[", contentStart);
+      if (leftBracketIndex === -1) {
+        console.error("未找到左方括号 [");
+        return null;
+      }
+
+      // 查找右方括号 ]
+      const rightBracketIndex = aiReplyText.indexOf("]", leftBracketIndex);
+      if (rightBracketIndex === -1) {
+        console.error("未找到右方括号 ]");
+        return null;
+      }
+
+      // 提取方括号内的内容
+      const bracketContent = aiReplyText.substring(leftBracketIndex, rightBracketIndex + 1);
+
+      try {
+        // 解析JSON数组
+        const output = JSON.parse(bracketContent);
+        if (Array.isArray(output)) {
+          return output;
+        } else {
+          console.error("解析结果不是数组");
           return null;
         }
-      } else {
-        console.error("未找到有效的出牌格式");
+      } catch (error) {
+        console.error("解析JSON时出错:", error);
         return null;
       }
     }
 
+    const aiReplyText = async (newUserMessage) => {
+      conversationHistory.value.push(newUserMessage);
+      console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2));
+
+      // 携带 messages 与 Kimi 大模型对话
+      const completion = await client.chat.completions.create({
+        model: "moonshot-v1-8k",
+        messages: conversationHistory.value,
+        temperature: 0.3,
+      });
+      // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
+      return completion.choices[0].message.content;
+    }
 
 
 

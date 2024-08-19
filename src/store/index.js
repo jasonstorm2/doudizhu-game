@@ -56,15 +56,14 @@ const gameInfo = {
   gameRules: {
     basicSetup: {
       playerCount: 3,
-      cardsPerPlayer: 16,
-      players: ['你', 'a', 'b'],
-      totalCards: 48,
-      removedCards: ['大王', '小王', '2', '2', '2', 'A']
+      cardsPerPlayer: 18,
+      players: ['你', 'a', 'b']
     },
     gameFlow: [
       '按顺序出牌，直到一名玩家出完所有牌',
     ],
     playRules: [
+      'Small表示单张的小王，Big表示单张的大王',
       '谁先出完牌，谁获胜',
       '首家出什么类型牌，其他玩家必须跟同类型的牌',
       '必须出大于上家的牌',
@@ -79,15 +78,15 @@ const gameInfo = {
     ],
     cardTypes: {
       single: {
-        description: '单牌',
-        order: ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2']
+        description: '单牌从小到大排序',
+        order: ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2','Small','Big']
       },
       pair: {
-        description: '对子',
-        order: ['33', '44', '55', '66', '77', '88', '99', '1010', 'JJ', 'QQ', 'KK', 'AA']
+        description: '对子从小到大排序',
+        order: ['33', '44', '55', '66', '77', '88', '99', '1010', 'JJ', 'QQ', 'KK', 'AA','22']
       },
       consecutivePairs: {
-        description: '连对',
+        description: '连对的到小顺序是和单牌的一样的',
         examples: {
           valid: ['3344', '445566', '667788', '8899JJ', 'KKAA'],
           invalid: ['5566JJ', 'AA22', 'JJQQAA']
@@ -196,8 +195,8 @@ export default createStore({
         state.currentPlayer = (state.currentPlayer + 1) % 3;
         state.passCount = 0;
         //记录ai的信息
-        state.gameInfo.lastPlayedCards = convertCards(player.selectedCards);
-        state.gameInfo.historyInfo.history.push(convertCards(player.selectedCards));
+        state.gameInfo.lastPlayedCards = convertCards(state.lastPlayedCards);
+        state.gameInfo.historyInfo.history.push(convertCards(state.lastPlayedCards));
 
         // 如果其他两名玩家都没有牌，开始新的小轮
         if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
@@ -254,6 +253,8 @@ export default createStore({
     playCards({ commit, state, dispatch }, playerIndex) {
       const selectedCards = state.players[playerIndex].selectedCards;
       sortCards(selectedCards);
+      console.log("开始出牌，牌的内容");
+      console.log(selectedCards);
 
       if (validateCardPattern(selectedCards)) {
         if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
@@ -269,9 +270,8 @@ export default createStore({
       }
     },
     showAlert(context, message) {
-      // 这里需要通过某种方式调用 App.vue 中的 showAlert 方法
-      // 一种方法是使用事件总线
-      EventBus.$emit('show-alert', message);
+      EventBus.emit('show-alert', message);
+
     },
     passPlay({ commit, state }) {
       if (state.lastPlayedCards === null) {

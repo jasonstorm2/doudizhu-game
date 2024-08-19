@@ -8,6 +8,7 @@ module.exports = defineConfig({
       alias: {
         '@': path.resolve(__dirname, 'src')
       }
-    }
+    },
+    devtool: 'source-map'
   }
 })

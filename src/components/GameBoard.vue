@@ -154,6 +154,7 @@ export default {
       dangerouslyAllowBrowser: true  // 添加这一行
     });
 
+
     const handleAIPlay = async () => {
       try {
         aiThinking.value = true;
@@ -174,15 +175,15 @@ export default {
 
           const assistantMessage = await getAIReply(newUserMessage);
           const extractedOutput = extractResponseFromAIReply(assistantMessage);
-          console.log("提取AI的发牌：", extractedOutput);
 
-          if (extractedOutput.length === 0 || extractedOutput == null) {
+          if (extractedOutput == null || extractedOutput.length === 0) {
             if (!canPass(2)) {
               handlePass(2);
+              break;
             }
           } else {
             const formattedOutput = extractedOutput.map(value => ({ value, selected: false }));
-            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value)) {
+            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value) && validateAIPlay(players.value[2].cards,extractedOutput)) {
               await playAICards(formattedOutput, assistantMessage);
               break;
             }
@@ -228,6 +229,29 @@ export default {
       await store.dispatch('playCards', 2);
       players.value = [...players.value];
     };
+
+    //验证ai是否真的有它出的牌
+    function validateAIPlay(aiHand, aiPlay) {
+      // 创建一个 Map 来记录 AI 手牌中每种牌的数量
+      const handCount = new Map();
+      aiHand.forEach(card => {
+        handCount.set(card.value, (handCount.get(card.value) || 0) + 1);
+      });
+
+      // 检查 AI 选择出的每张牌
+      for (const playedCard of aiPlay) {
+        if (!handCount.has(playedCard) || handCount.get(playedCard) === 0) {
+          // AI 试图出一张它没有的牌
+          console.log("ai试图出一张自己手上没有的牌："+playedCard);
+          return false;
+        }
+        // 减少这张牌的计数
+        handCount.set(playedCard, handCount.get(playedCard) - 1);
+      }
+
+      // 所有牌都验证通过
+      return true;
+    }
 
 
     function extractResponseFromAIReply(aiReplyText) {
@@ -291,6 +315,8 @@ export default {
       });
       let content = completion.choices[0].message.content;
       // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
+      console.log("ai的回答：" + content);
+
       return content;
     }
 

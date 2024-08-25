@@ -68,6 +68,8 @@ export default {
       }
     });
 
+    const isAIThinking = ref(false);
+
     const store = useStore();
     const aiThinking = ref(false);
 
@@ -155,8 +157,15 @@ export default {
     });
 
 
+
     const handleAIPlay = async () => {
+      if (isAIThinking.value) {
+        console.log("AI正在思考中，请稍候...");
+        return;
+      }
+
       try {
+        isAIThinking.value = true;
         aiThinking.value = true;
         let retryCount = 0;
         const maxRetries = 3;
@@ -183,7 +192,7 @@ export default {
             }
           } else {
             const formattedOutput = extractedOutput.map(value => ({ value, selected: false }));
-            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value) && validateAIPlay(players.value[2].cards,extractedOutput)) {
+            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value) && validateAIPlay(players.value[2].cards, extractedOutput)) {
               await playAICards(formattedOutput, assistantMessage);
               break;
             }
@@ -199,6 +208,7 @@ export default {
         console.error('AI play error:', error);
         EventBus.emit('show-alert', 'AI 出牌出错，请重试！');
       } finally {
+        isAIThinking.value = false;
         aiThinking.value = false;
       }
     };
@@ -242,7 +252,7 @@ export default {
       for (const playedCard of aiPlay) {
         if (!handCount.has(playedCard) || handCount.get(playedCard) === 0) {
           // AI 试图出一张它没有的牌
-          console.log("ai试图出一张自己手上没有的牌："+playedCard);
+          console.log("ai试图出一张自己手上没有的牌：" + playedCard);
           return false;
         }
         // 减少这张牌的计数
@@ -304,22 +314,34 @@ export default {
     }
 
     const getAIReply = async (newUserMessage) => {
-      conversationHistory.value.push(newUserMessage);
-      console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2));
+      const maxRetries = 3;
+      let retryCount = 0;
 
-      // 携带 messages 与 Kimi 大模型对话
-      const completion = await client.chat.completions.create({
-        model: "moonshot-v1-32k",
-        messages: conversationHistory.value,
-        temperature: 0.3,
-      });
-      let content = completion.choices[0].message.content;
-      // 通过 API 我们获得了 Kimi 大模型给予我们的回复消息（role=assistant）
-      console.log("ai的回答：" + content);
+      while (retryCount < maxRetries) {
+        try {
+          conversationHistory.value.push(newUserMessage);
+          console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2));
 
-      return content;
-    }
+          const completion = await client.chat.completions.create({
+            model: "moonshot-v1-32k",
+            messages: conversationHistory.value,
+            temperature: 0.3,
+          });
 
+          let content = completion.choices[0].message.content;
+          console.log("ai的回答：" + content);
+          return content;
+        } catch (error) {
+          console.error(`AI请求失败（尝试 ${retryCount + 1}/${maxRetries}）:`, error);
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new Error('AI请求多次失败，请稍后再试。');
+          }
+          // 等待一段时间后重试
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
+      }
+    };
 
 
 
@@ -348,6 +370,7 @@ export default {
       handlePlayCards,
       handlePass,
       // 确保返回新添加的方法
+      isAIThinking,
       handleAIPlay,
       canPass: (playerIndex) => canPass(players.value[playerIndex].cards, lastPlayedCards.value)
     };

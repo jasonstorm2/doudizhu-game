@@ -1,6 +1,8 @@
 <template>
   <div class="game-board">
-
+    <div v-if="isAIThinking" class="ai-thinking-indicator">
+      AI正在思考中...
+    </div>
     <audio ref="backgroundMusic" loop>
       <source src="/assets/bgm1.mp3" type="audio/mpeg">
     </audio>
@@ -171,6 +173,12 @@ export default {
         const maxRetries = 3;
 
         while (retryCount < maxRetries) {
+          if (retryCount > 0) {
+            // 如果不是第一次尝试，等待2秒
+            console.log(`AI回答错误，等待2秒后重试...（尝试 ${retryCount + 1}/${maxRetries}）`);
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          }
+
           const gameState = {
             "你目前的手牌": convertCards(players.value[2].cards),
             "上家出牌": convertCards(lastPlayedCards.value),
@@ -427,5 +435,16 @@ export default {
 button {
   margin-top: 10px;
   margin-right: 5px;
+}
+.ai-thinking-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  z-index: 1000;
 }
 </style>

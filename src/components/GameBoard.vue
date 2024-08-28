@@ -45,7 +45,7 @@
 <script>
 import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'vuex';
-import { canPass, convertCards, isGreaterThanLastPlay, sortCards, validateCardPattern } from '../api/gameApi.js';
+import { canPass, convertCards, isGreaterThanLastPlay, sortCards, validateCardPattern} from '../api/gameApi.js';
 import { EventBus } from '../eventBus';
 import PlayedCards from './PlayedCards.vue';
 import PlayerHand from './PlayerHand.vue';
@@ -170,11 +170,11 @@ export default {
         isAIThinking.value = true;
         aiThinking.value = true;
         let retryCount = 0;
-        const maxRetries = 3;
+        const maxRetries = 5;
+        let lastErrorMessage = "";
 
         while (retryCount < maxRetries) {
           if (retryCount > 0) {
-            // 如果不是第一次尝试，等待2秒
             console.log(`AI回答错误，等待2秒后重试...（尝试 ${retryCount + 1}/${maxRetries}）`);
             await new Promise(resolve => setTimeout(resolve, 4000));
           }
@@ -182,12 +182,15 @@ export default {
           const gameState = {
             "你目前的手牌": convertCards(players.value[2].cards),
             "上家出牌": convertCards(lastPlayedCards.value),
-            "玩家出牌历史": store.state.gameInfo.historyInfo.history
+            "玩家出牌历史": store.state.gameInfo.historyInfo.history,
+            "上家牌型": store.state.lastPlayedType
           };
+
+          let additionalInfo = retryCount > 0 ? `之前的选择无效，请仔细查看游戏规则，请重新选择。${lastErrorMessage}` : "";
 
           const newUserMessage = {
             "role": "user",
-            "content": `游戏状态：${JSON.stringify(gameState)}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${retryCount > 0 ? "之前的选择无效，请重新选择。" : ""}`
+            "content": `游戏状态：${JSON.stringify(gameState)}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${additionalInfo}`
           };
 
           const assistantMessage = await getAIReply(newUserMessage);
@@ -200,9 +203,16 @@ export default {
             }
           } else {
             const formattedOutput = extractedOutput.map(value => ({ value, selected: false }));
-            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value) && validateAIPlay(players.value[2].cards, extractedOutput)) {
-              await playAICards(formattedOutput, assistantMessage);
-              break;
+            if (validateCardPattern(formattedOutput) && isGreaterThanLastPlay(formattedOutput, lastPlayedCards.value)) {
+              if (validateAIPlay(players.value[2].cards, extractedOutput)) {
+                await playAICards(formattedOutput, assistantMessage);
+                break;
+              } else {
+                lastErrorMessage = "你试图出一张自己手上没有的牌，请重新选择。";
+                console.log(lastErrorMessage);
+              }
+            } else {
+              lastErrorMessage = "你选择的牌不符合规则或没有大过上家的牌，请重新选择。";
             }
           }
 
@@ -220,10 +230,9 @@ export default {
         aiThinking.value = false;
       }
     };
-
     const playAICards = async (formattedOutput, assistantMessage) => {
       conversationHistory.value.push({ "role": "assistant", "content": assistantMessage });
-      console.log("ai的策略：", assistantMessage);
+      // console.log("ai的策略：", assistantMessage);
 
       // 确保在这里初始化 selectionCount
       const selectionCount = new Map();
@@ -436,6 +445,7 @@ button {
   margin-top: 10px;
   margin-right: 5px;
 }
+
 .ai-thinking-indicator {
   position: fixed;
   top: 50%;

@@ -57,6 +57,89 @@ export function validateCardPattern(cards) {
 
   return false;
 }
+
+export function getCardPatternType(cards) {
+  // 首先确保牌已排序
+  const sortedCards = sortCards(cards);
+  const values = sortedCards.map(card => card.value);
+  const uniqueValues = [...new Set(values)];
+
+  // 单张
+  if (values.length === 1) {
+    return 'single';
+  }
+
+  // 对子
+  if (values.length === 2 && uniqueValues.length === 1) {
+    return 'pair';
+  }
+
+  // 三带一或三带二
+  if (values.length === 4 && (uniqueValues.length === 2 && (values[0] === values[1] && values[1] === values[2] || values[1] === values[2] && values[2] === values[3]))) {
+    return 'threeWithOne';
+  }
+  if (values.length === 5 && uniqueValues.length === 2 && (values[0] === values[1] && values[1] === values[2] || values[2] === values[3] && values[3] === values[4])) {
+    return 'threeWithTwo';
+  }
+  // 三张
+  if (values.length === 3 && (uniqueValues.length === 1)) {
+    return 'three';
+  }
+
+  // 连对
+  if (values.length >= 6 && values.length % 2 === 0) {
+    let isConsecutivePairs = true;
+    for (let i = 0; i < values.length; i += 2) {
+      if (values[i] !== values[i + 1] || (i > 0 && values[i] !== values[i - 2] + 1)) {
+        isConsecutivePairs = false;
+        break;
+      }
+    }
+    if (isConsecutivePairs) {
+      return 'consecutivePairs';
+    }
+  }
+
+  // 飞机带翅膀
+  if (values.length >= 8 && values.length % 4 === 0) {
+    const threeCount = values.length / 4;
+    let isPlaneWithWings = true;
+    for (let i = 0; i < threeCount * 3; i += 3) {
+      if (values[i] !== values[i + 1] || values[i] !== values[i + 2] || (i > 0 && values[i] !== values[i - 3] + 1)) {
+        isPlaneWithWings = false;
+        break;
+      }
+    }
+    if (isPlaneWithWings) {
+      return 'planeWithWings';
+    }
+  }
+
+  // 顺子
+  if (values.length >= 5 && uniqueValues.length === values.length) {
+    let isStraight = true;
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] !== values[i - 1] + 1) {
+        isStraight = false;
+        break;
+      }
+    }
+    if (isStraight) {
+      return 'straight';
+    }
+  }
+
+  // 炸弹
+  if (values.length === 4 && uniqueValues.length === 1) {
+    return 'bomb';
+  }
+
+  // 如果没有匹配到任何牌型，返回 null 或者一个表示无效牌型的字符串
+  return null;
+}
+
+
+
 function isConsecutivePairs(cards) {
   if (cards.length % 2 !== 0) return false;
 
@@ -707,7 +790,7 @@ export function convertCards(cards) {
   if (!Array.isArray(cards) || cards.length === 0) {
     return [];
   }
-  
+
   // 原有的转换逻辑
   return cards.map(card => card?.value).filter(value => value !== undefined);
 }

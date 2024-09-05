@@ -96,7 +96,7 @@ const gameInfo = {
   "card_ranking": "大小王 > 2 > A > K > Q > J > 10 > 9 > 8 > 7 > 6 > 5 > 4 > 3",
   "card_ranking_description": "牌的大小顺序，大小王是最大的牌，可以作为炸弹一起出，也可以单独出。大王用Big表示，小王用Small表示，对子的大小比较基于单个牌面数值的大小。例如，对2（22）大于对Q（QQ）。同理，三张和三带一，三带二也是一样。",
 
-  "responseFormat": '出牌:["A","A"]',
+  "responseFormat": '我的出牌:[]    比如，我的出牌:["3","3"]，用一句话回答',
   initialHand: ['A', 'K', 'Q', 'Q', 'J', '10', '9', '9', '9', '8', '7', '6', '6', '5', '5', '3'],
   historyInfo: {
     description: '玩家出牌历史',

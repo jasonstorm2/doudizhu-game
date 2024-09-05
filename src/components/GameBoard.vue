@@ -51,6 +51,8 @@ import PlayedCards from './PlayedCards.vue';
 import PlayerHand from './PlayerHand.vue';
 import StartScreen from './StartScreen.vue';
 import VictoryScreen from './VictoryScreen.vue';
+import { sendGameStateToFlask } from '../api/httpApi';
+
 
 
 export default {
@@ -150,13 +152,13 @@ export default {
         "content": "这是'跑得快'纸牌游戏的规则和初始设置：\n\n" + JSON.stringify(store.state.gameInfo, null, 2)
       }
     ]);
-    const OpenAI = require("openai");
+    // const OpenAI = require("openai");
 
-    const client = new OpenAI({
-      apiKey: "sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx",
-      baseURL: "https://api.moonshot.cn/v1",
-      dangerouslyAllowBrowser: true  // 添加这一行
-    });
+    // const client = new OpenAI({
+    //   apiKey: "sk-GZsrnJOEQpwVTs5oFN4kfycrHcSOarBfLJh9IRSwzthEifAx",
+    //   baseURL: "https://api.moonshot.cn/v1",
+    //   dangerouslyAllowBrowser: true  // 添加这一行
+    // });
 
 
 
@@ -175,8 +177,8 @@ export default {
 
         while (retryCount < maxRetries) {
           if (retryCount > 0) {
-            console.log(`AI回答错误，等待2秒后重试...（尝试 ${retryCount + 1}/${maxRetries}）`);
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            console.log(`AI回答错误，等待3秒后重试...（尝试 ${retryCount + 1}/${maxRetries}）`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
 
           const gameState = {
@@ -190,10 +192,11 @@ export default {
 
           const newUserMessage = {
             "role": "user",
-            "content": `游戏状态：${JSON.stringify(gameState)}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。${additionalInfo}`
+            "content": `游戏状态：${JSON.stringify(gameState)}。请根据这个状态，决定是出牌还是过牌，如果出牌，选择要出的牌。请用一句话回答，不需要多余的分析${additionalInfo}`
           };
 
-          const assistantMessage = await getAIReply(newUserMessage);
+          const rawMessage = await getAIReply(newUserMessage);
+          const assistantMessage = rawMessage.data;
           const extractedOutput = extractResponseFromAIReply(assistantMessage);
 
           if (extractedOutput == null || extractedOutput.length === 0) {
@@ -282,16 +285,16 @@ export default {
 
 
     function extractResponseFromAIReply(aiReplyText) {
-      const startKeyword = "出牌：";
+      const startKeyword = "我的出牌：";
       let startIndex = aiReplyText.indexOf(startKeyword);
 
       // 如果找不到"出牌："，尝试查找"出牌:"（使用英文冒号）
       if (startIndex === -1) {
-        startIndex = aiReplyText.indexOf("出牌:");
+        startIndex = aiReplyText.indexOf("我的出牌:");
       }
 
       if (startIndex === -1) {
-        console.error("未找到'出牌：'关键词");
+        console.error("未找到'我的出牌：'关键词");
         return null;
       }
 
@@ -337,16 +340,9 @@ export default {
       while (retryCount < maxRetries) {
         try {
           conversationHistory.value.push(newUserMessage);
-          console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2));
-
-          const completion = await client.chat.completions.create({
-            model: "moonshot-v1-32k",
-            messages: conversationHistory.value,
-            temperature: 0.3,
-          });
-
-          let content = completion.choices[0].message.content;
-          console.log("ai的回答：" + content);
+          console.log("给ai的信息2" + JSON.stringify(conversationHistory.value, null, 2))
+          let content = await sendGameStateToFlask(conversationHistory.value);
+          console.log("ai的回答：" + content.data);
           return content;
         } catch (error) {
           console.error(`AI请求失败（尝试 ${retryCount + 1}/${maxRetries}）:`, error);

@@ -1,5 +1,46 @@
 // gameApi.js
 
+// 定义角色枚举
+const PlayerType = {
+  AI: 'AI',
+  HUMAN: 'HUMAN',
+  PROGRAM: 'PROGRAM'
+};
+
+// 打牌函数
+function playCard(playerType) {
+  switch (playerType) {
+    case PlayerType.AI:
+      return playAICard();
+    case PlayerType.HUMAN:
+      return playHumanCard();
+    case PlayerType.PROGRAM:
+      return playProgramCard();
+    default:
+      throw new Error('Unknown player type');
+  }
+}
+
+// AI打牌逻辑
+function playAICard() {
+  // AI打牌的具体实现
+  console.log('AI is playing a card');
+}
+
+// 人类玩家打牌逻辑
+function playHumanCard() {
+  // 人类玩家打牌的具体实现
+  console.log('Human is playing a card');
+}
+
+// 程序打牌逻辑
+function playProgramCard() {
+  // 程序打牌的具体实现
+  console.log('Program is playing a card');
+}
+
+// 导出函数和枚举
+export { PlayerType, playCard };
 
 // 辅助函数
 
@@ -266,7 +307,7 @@ export function isGreaterThanLastPlay(currentCards, lastPlayedCards) {
 }
 
 function compareConsecutivePairs(pairs1, pairs2) {
-  // 连对的比较只需要比较第一对
+  // 连对的比较只需要比��第一对
   return compareCards(pairs1[0], pairs2[0]) > 0;
 }
 

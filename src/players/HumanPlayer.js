@@ -19,9 +19,4 @@ export class HumanPlayer extends Player {
     }
     return null;
   }
-
-  canPass(lastPlayedCards) {
-    // 实现人类玩家的过牌逻辑
-    return lastPlayedCards && lastPlayedCards.length > 0;
-  }
 }

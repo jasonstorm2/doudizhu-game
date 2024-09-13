@@ -1,3 +1,5 @@
+import { canPass } from '../api/gameApi';
+
 export class Player {
   constructor(id, type) {
     this.id = id;
@@ -23,8 +25,7 @@ export class Player {
     throw new Error("Method 'playCards()' must be implemented.");
   }
 
-  canPass(lastPlayedCards) {
-    console.log(lastPlayedCards);
-    throw new Error("Method 'canPass()' must be implemented.");
+  canPass(lastPlayedCards, isFirstPlayer) {
+    return canPass(this.cards, lastPlayedCards, isFirstPlayer);
   }
 }

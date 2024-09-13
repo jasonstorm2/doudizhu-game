@@ -62,11 +62,13 @@ export default {
     const isMusicPlaying = ref(false);
     const backgroundMusic = ref(null);
 
-    const players = ref([
+    const players = computed(() => [
       new HumanPlayer(0),
       new HumanPlayer(1),
-      new AIPlayer(2)
+      new HumanPlayer(2)
     ]);
+    // new AIPlayer(2)
+
 
     const gameState = computed(() => store.state.gameState);
     const currentPlayer = computed(() => store.state.currentPlayer);
@@ -82,6 +84,9 @@ export default {
 
     const startGame = () => {
       store.dispatch('startGame');
+      players.value.forEach((player, index) => {
+        player.cards = store.state.players[index].cards;
+      });
       for (let i = 0; i < 3; i++) {
         store.dispatch('sortPlayerCards', i);
       }
@@ -152,7 +157,11 @@ export default {
       }
     };
 
-    const canPass = (playerIndex) => players.value[playerIndex].canPass(store.state.lastPlayedCards);
+    const canPass = (playerIndex) => {
+      const player = players.value[playerIndex];
+      const isFirstPlayer = store.state.currentRoundStartPlayer === playerIndex;
+      return player.canPass(store.state.lastPlayedCards, isFirstPlayer);
+    };
 
     return {
       backgroundMusic,

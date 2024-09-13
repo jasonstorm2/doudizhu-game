@@ -307,7 +307,7 @@ export function isGreaterThanLastPlay(currentCards, lastPlayedCards) {
 }
 
 function compareConsecutivePairs(pairs1, pairs2) {
-  // 连对的比较只需要比��第一对
+  // 连对的比较只需要比第一对
   return compareCards(pairs1[0], pairs2[0]) > 0;
 }
 

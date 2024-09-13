@@ -1,8 +1,8 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
 import { validateCardPattern, isGreaterThanLastPlay, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
-
-
+import { HumanPlayer } from '../players/HumanPlayer';
+import { AIPlayer } from '../players/AIPlayer';
 
 // 辅助函数
 function createDeck() {
@@ -108,94 +108,13 @@ const gameInfo = {
   },
 }
 
-// const gameInfo2 = {
-//   gameRules: {
-//     basicSetup: {
-//       playerCount: 3,
-//       cardsPerPlayer: 18,
-//       players: ['你', 'a', 'b']
-//     },
-//     // gameFlow: [
-//     //   '按顺序出牌，直到一名玩家出完所有牌',
-//     // ],
-//     playRules: [
-//       '大小王表示：Small表示单张的小王，Big表示单张的大王',
-//       '获胜条件：先出完牌，谁获胜',
-//       '出牌规则1：首家出什么类型牌，其他玩家必须跟同类型的牌，除非玩家出炸弹',
-//       '出牌规则2：必须出大于上家的牌',
-//       '出牌规则3：如无法出牌则过牌',
-//       '当一轮中所有其他玩家都选择"过"时，最后出牌的玩家获得出牌权，可以自由选择任何牌型出牌',
-//       '强制出牌：玩家非首发，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌'
-//     ],
-//     cardTypes: {
-//       single: {
-//         description: '单牌从小到大排序',
-//         order: ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'Small', 'Big']
-//       },
-//       pair: {
-//         description: '对子从小到大排序',
-//         order: ['33', '44', '55', '66', '77', '88', '99', '1010', 'JJ', 'QQ', 'KK', 'AA', '22']
-//       },
-//       consecutivePairs: {
-//         description: '连对的到小顺序是和单牌的一样的',
-//         examples: {
-//           valid: ['3344', '445566', '667788', '8899JJ', 'KKAA'],
-//           invalid: ['5566JJ', 'AA22', 'JJQQAA']
-//         }
-//       },
-//       threeWithOne: {
-//         description: '三带一：三张相同+一张单牌'
-//       },
-//       threeWithTwo: {
-//         description: '三带二：三张相同+对子'
-//       },
-//       planeWithWings: {
-//         description: '飞机带翅膀：两个或两个以上三张+同数量的单牌或对子',
-//         examples: {
-//           valid: ['44433365', '', '4443336655', 'KKKQQQJJJ654', 'AAAKKKQQQ6655'],
-//           invalid: ['444333655', 'KKKQQQJJJ6544']
-//         }
-//       },
-//       straight: {
-//         description: '顺子：五张或以上连续单牌',
-//         examples: {
-//           valid: ['34567', '678910', '910JQK', '10JQKA'],
-//           invalid: ['JQKA2', 'QKA23']
-//         }
-//       },
-//       bomb: {
-//         description: '炸弹：四相同的牌，或者大小王炸，大小王炸：small,big'
-//       }
-//     },
-//     specialRules: [
-//       '强制出牌：如有大于上家的牌必须出牌，不能过牌'
-//     ],
-//     winCondition: '最先出完所有手牌的玩家获胜',
-//     examples: [
-//       '如果A出了三个4，B必须出三个大于4的牌（如三个8），或者出炸弹。如果B没有三个大于4的牌或炸弹，则必须过牌。',
-//       '如果A出了对10，B必须出大于10的对子（如对J、对Q等），或者出炸弹。B不能出三个9或顺子等其他牌型。',
-//       '如果A出了顺子45678，B必须出更大的五张顺子（如56789或67890等），或者出炸弹。B不能出其他牌型或更短的顺子。'
-//     ]
-//   },
-//   responseFormat: '出牌:["A","A"],注意：格式为javascript字符串数组',
-//   initialHand: ['A', 'K', 'Q', 'Q', 'J', '10', '9', '9', '9', '8', '7', '6', '6', '5', '5', '3'],
-//   historyInfo: {
-//     description: '玩家出牌历史',
-//     history: []
-//   },
-//   lastPlayedCards: {
-//     description: '上个玩家的出牌',
-//     cards: {}
-//   },
-// };
-
 export default createStore({
   state: {
     gameState: 'START',
     players: [
-      { cards: [], selectedCards: [] },
-      { cards: [], selectedCards: [] },
-      { cards: [], selectedCards: [] }
+      new HumanPlayer(0),
+      new HumanPlayer(1),
+      new AIPlayer(2)
     ],
     currentPlayer: 0,
     playedCards: [],

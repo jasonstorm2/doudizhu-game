@@ -75,7 +75,4 @@ export class AIPlayer extends Player {
     console.log(aiReplyText);
   }
 
-  canPass(lastPlayedCards) {
-    return lastPlayedCards && lastPlayedCards.length > 0;
-  }
 }

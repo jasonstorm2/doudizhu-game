@@ -50,7 +50,6 @@ import PlayedCards from './PlayedCards.vue';
 import PlayerHand from './PlayerHand.vue';
 import StartScreen from './StartScreen.vue';
 import VictoryScreen from './VictoryScreen.vue';
-import { HumanPlayer } from '../players/HumanPlayer';
 import { AIPlayer } from '../players/AIPlayer';
 
 export default {
@@ -62,13 +61,7 @@ export default {
     const isMusicPlaying = ref(false);
     const backgroundMusic = ref(null);
 
-    const players = computed(() => [
-      new HumanPlayer(0),
-      new HumanPlayer(1),
-      new HumanPlayer(2)
-    ]);
-    // new AIPlayer(2)
-
+    const players = computed(() => store.state.players);
 
     const gameState = computed(() => store.state.gameState);
     const currentPlayer = computed(() => store.state.currentPlayer);
@@ -120,6 +113,11 @@ export default {
 
     const handlePlayCards = async (playerIndex) => {
       const player = players.value[playerIndex];
+      if (!player) {
+        console.error(`Player at index ${playerIndex} is undefined`);
+        return;
+      }
+
       const lastPlayedCards = store.state.lastPlayedCards;
       
       if (player instanceof AIPlayer) {
@@ -143,7 +141,7 @@ export default {
       } else {
         const result = player.playCards(lastPlayedCards);
         if (result) {
-          store.dispatch('playCards', { playerIndex, cards: result });
+          store.dispatch('playCards', playerIndex );
         }
       }
     };

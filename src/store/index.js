@@ -2,7 +2,7 @@ import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
 import { validateCardPattern, isGreaterThanLastPlay, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
 import { HumanPlayer } from '../players/HumanPlayer';
-import { AIPlayer } from '../players/AIPlayer';
+// import { AIPlayer } from '../players/AIPlayer';
 
 // 辅助函数
 function createDeck() {
@@ -114,7 +114,9 @@ export default createStore({
     players: [
       new HumanPlayer(0),
       new HumanPlayer(1),
-      new AIPlayer(2)
+      new HumanPlayer(2),
+
+      // new AIPlayer(2)
     ],
     currentPlayer: 0,
     playedCards: [],
@@ -226,7 +228,20 @@ export default createStore({
       commit('SELECT_CARD', payload);
     },
     playCards({ commit, state, dispatch }, playerIndex) {
-      const selectedCards = state.players[playerIndex].selectedCards;
+      console.log(`Player index ${playerIndex} is playing cards.......`);
+
+      const player = state.players[playerIndex];
+      if (!player) {
+        console.error(`Player at index ${playerIndex} is undefined`);
+        return;
+      }
+
+      const selectedCards = player.selectedCards;
+      if (!selectedCards) {
+        console.error(`selectedCards for player ${playerIndex} is undefined`);
+        return;
+      }
+
       sortCards(selectedCards);
       console.log("开始出牌，牌的内容");
       console.log(selectedCards);
@@ -234,7 +249,7 @@ export default createStore({
       if (validateCardPattern(selectedCards)) {
         if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
           commit('PLAY_CARDS', playerIndex);
-          if (state.players[playerIndex].cards.length === 0) {
+          if (player.cards.length === 0) {
             commit('SET_WINNER', playerIndex);
           }
         } else {

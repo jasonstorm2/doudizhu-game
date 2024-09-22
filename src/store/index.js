@@ -2,6 +2,7 @@ import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
 import { validateCardPattern, isGreaterThanLastPlay, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
 import { HumanPlayer } from '../players/HumanPlayer';
+import { ProgramPlayer } from '../players/ProgramPlayer';
 // import { AIPlayer } from '../players/AIPlayer';
 
 // 辅助函数
@@ -113,7 +114,7 @@ export default createStore({
     gameState: 'START',
     players: [
       new HumanPlayer(0),
-      new HumanPlayer(1),
+      new ProgramPlayer(1),
       new HumanPlayer(2),
 
       // new AIPlayer(2)

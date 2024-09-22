@@ -51,6 +51,7 @@ import PlayerHand from './PlayerHand.vue';
 import StartScreen from './StartScreen.vue';
 import VictoryScreen from './VictoryScreen.vue';
 import { AIPlayer } from '../players/AIPlayer';
+import { ProgramPlayer } from '../players/ProgramPlayer';
 
 export default {
   name: 'GameBoard',
@@ -120,7 +121,7 @@ export default {
 
       const lastPlayedCards = store.state.lastPlayedCards;
       
-      if (player instanceof AIPlayer) {
+      if (player instanceof AIPlayer || player instanceof ProgramPlayer) {
         isAIThinking.value = true;
         try {
           const gameState = {

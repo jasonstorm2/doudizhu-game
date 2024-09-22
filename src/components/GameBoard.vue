@@ -120,7 +120,7 @@ export default {
       }
 
       const lastPlayedCards = store.state.lastPlayedCards;
-      
+
       if (player instanceof AIPlayer || player instanceof ProgramPlayer) {
         isAIThinking.value = true;
         try {
@@ -140,44 +140,56 @@ export default {
           isAIThinking.value = false;
         }
       } else {
-        const result = player.playCards(lastPlayedCards);
-        if (result) {
-          store.dispatch('playCards', playerIndex );
+        console.log("Player is not an AI player");
+        // 人类玩家逻辑
+        const selectedCards = player.cards.filter(card => card.selected);
+        if (selectedCards.length === 0) {
+          EventBus.emit('show-alert', '请选择要出的牌');
+          return;
         }
+        store.dispatch('playCards', { playerIndex, cards: selectedCards });
+
+      }
+
+      // 检查是否需要AI自动出牌
+      if (store.state.currentPlayer === 1) {
+        setTimeout(() => handlePlayCards(1), 1000); // 1秒后AI自动出牌
+      } else if (store.state.currentPlayer === 2) {
+        setTimeout(() => handlePlayCards(2), 1000); // 1秒后AI自动出牌
       }
     };
 
-    const handlePass = (playerIndex) => {
-      const player = players.value[playerIndex];
-      if (player.canPass(store.state.lastPlayedCards)) {
-        store.dispatch('passPlay', playerIndex);
-      } else {
-        EventBus.emit('show-alert', '不能过牌！');
-      }
-    };
+      const handlePass = (playerIndex) => {
+        const player = players.value[playerIndex];
+        if (player.canPass(store.state.lastPlayedCards)) {
+          store.dispatch('passPlay', playerIndex);
+        } else {
+          EventBus.emit('show-alert', '不能过牌！');
+        }
+      };
 
-    const canPass = (playerIndex) => {
-      const player = players.value[playerIndex];
-      const isFirstPlayer = store.state.currentRoundStartPlayer === playerIndex;
-      return player.canPass(store.state.lastPlayedCards, isFirstPlayer);
-    };
+      const canPass = (playerIndex) => {
+        const player = players.value[playerIndex];
+        const isFirstPlayer = store.state.currentRoundStartPlayer === playerIndex;
+        return player.canPass(store.state.lastPlayedCards, isFirstPlayer);
+      };
 
-    return {
-      backgroundMusic,
-      isMusicPlaying,
-      toggleMusic,
-      gameState,
-      players,
-      currentPlayer,
-      playedCards,
-      winner,
-      startGame,
-      restartGame,
-      handleSelectCard,
-      handlePlayCards,
-      handlePass,
-      isAIThinking,
-      canPass
+      return {
+        backgroundMusic,
+        isMusicPlaying,
+        toggleMusic,
+        gameState,
+        players,
+        currentPlayer,
+        playedCards,
+        winner,
+        startGame,
+        restartGame,
+        handleSelectCard,
+        handlePlayCards,
+        handlePass,
+        isAIThinking,
+        canPass
     };
   },
 };

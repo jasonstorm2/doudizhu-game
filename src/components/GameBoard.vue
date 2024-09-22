@@ -147,8 +147,7 @@ export default {
           EventBus.emit('show-alert', '请选择要出的牌');
           return;
         }
-        store.dispatch('playCards', { playerIndex, cards: selectedCards });
-
+        store.dispatch('playCards', playerIndex );
       }
 
       // 检查是否需要AI自动出牌

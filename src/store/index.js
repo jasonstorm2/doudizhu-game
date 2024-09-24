@@ -57,7 +57,7 @@ const gameInfo = {
   "game": "跑得快",
   "players": "3或更多",
   "deck": "54张扑克牌（包括大小王）",
-  "winning_condition": "先出完牌的玩家获胜。",
+  "winning_condition": "先出��牌的玩家获胜。",
   "playing_rules": [
     {
       "rule_no": 1,
@@ -225,10 +225,12 @@ export default createStore({
       commit('DEAL_CARDS', deck);
       commit('SET_GAME_STATE', 'PLAYING');
     },
+    
     selectCard({ commit }, payload) {
       commit('SELECT_CARD', payload);
     },
-    playCards({ commit, state, dispatch }, playerIndex) {
+
+    playCards({ commit, state, dispatch }, { playerIndex, cards }) {
       console.log(`Player index ${playerIndex} is playing cards.......`);
 
       const player = state.players[playerIndex];
@@ -237,7 +239,7 @@ export default createStore({
         return;
       }
 
-      const selectedCards = player.selectedCards;
+      const selectedCards = cards || player.selectedCards;
       if (!selectedCards) {
         console.error(`selectedCards for player ${playerIndex} is undefined`);
         return;
@@ -259,16 +261,23 @@ export default createStore({
       } else {
         dispatch('showAlert', '无效的牌型！');
       }
+
+      // 在 action 结束时触发 turnEnd 事件
+      EventBus.emit('turnEnd');
     },
+
+
     showAlert(context, message) {
       EventBus.emit('show-alert', message);
-
     },
     passPlay({ commit, state }) {
       if (state.lastPlayedCards === null) {
         throw new Error('第一个出牌的玩家不能过牌！');
       }
       commit('PASS_PLAY');
+
+      // 在 action 结束时触发 turnEnd 事件
+      EventBus.emit('turnEnd');
     },
     restartGame({ commit }) {
       commit('RESET_GAME');

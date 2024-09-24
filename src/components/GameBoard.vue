@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useStore } from 'vuex';
 import { EventBus } from '../eventBus';
 import PlayedCards from './PlayedCards.vue';
@@ -113,6 +113,7 @@ export default {
       players.value[playerIndex].selectCard(cardIndex);
 
     const handlePlayCards = async (playerIndex) => {
+      console.log(`handlePlayCards called for player ${playerIndex}`);
       const player = players.value[playerIndex];
       if (!player) {
         console.error(`Player at index ${playerIndex} is undefined`);
@@ -131,64 +132,92 @@ export default {
             "上家牌型": store.state.lastPlayedType
           };
           const result = await player.playCards(lastPlayedCards, gameState);
-          if (result === 'pass') {
+          console.log(`AI player ${playerIndex} decided to play:`, result);
+          if (result === null) {
+            // AI 决定过牌
+            console.log(`AI player ${playerIndex} decided to pass`);
             handlePass(playerIndex);
-          } else if (result) {
+          } else {
+            // AI 出牌
             store.dispatch('playCards', { playerIndex, cards: result });
           }
+        } catch (error) {
+          console.error(`Error in AI player ${playerIndex}:`, error);
+          handlePass(playerIndex);
         } finally {
           isAIThinking.value = false;
         }
       } else {
-        console.log("Player is not an AI player");
         // 人类玩家逻辑
         const selectedCards = player.cards.filter(card => card.selected);
         if (selectedCards.length === 0) {
           EventBus.emit('show-alert', '请选择要出的牌');
           return;
         }
-        store.dispatch('playCards', playerIndex );
-      }
-
-      // 检查是否需要AI自动出牌
-      if (store.state.currentPlayer === 1) {
-        setTimeout(() => handlePlayCards(1), 1000); // 1秒后AI自动出牌
-      } else if (store.state.currentPlayer === 2) {
-        setTimeout(() => handlePlayCards(2), 1000); // 1秒后AI自动出牌
+        store.dispatch('playCards', { playerIndex, cards: selectedCards });
       }
     };
 
-      const handlePass = (playerIndex) => {
-        const player = players.value[playerIndex];
-        if (player.canPass(store.state.lastPlayedCards)) {
-          store.dispatch('passPlay', playerIndex);
-        } else {
-          EventBus.emit('show-alert', '不能过牌！');
-        }
-      };
+    const handlePass = (playerIndex) => {
+      console.log(`handlePass called for player ${playerIndex}`);
+      const player = players.value[playerIndex];
+      if (player.canPass(store.state.lastPlayedCards)) {
+        store.dispatch('passPlay', playerIndex);
+      } else {
+        console.log(`Player ${playerIndex} cannot pass`);
+        EventBus.emit('show-alert', '不能过牌！');
+      }
+    };
 
-      const canPass = (playerIndex) => {
-        const player = players.value[playerIndex];
-        const isFirstPlayer = store.state.currentRoundStartPlayer === playerIndex;
-        return player.canPass(store.state.lastPlayedCards, isFirstPlayer);
-      };
+    const canPass = (playerIndex) => {
+      const player = players.value[playerIndex];
+      const isFirstPlayer = store.state.currentRoundStartPlayer === playerIndex;
+      return player.canPass(store.state.lastPlayedCards, isFirstPlayer);
+    };
 
-      return {
-        backgroundMusic,
-        isMusicPlaying,
-        toggleMusic,
-        gameState,
-        players,
-        currentPlayer,
-        playedCards,
-        winner,
-        startGame,
-        restartGame,
-        handleSelectCard,
-        handlePlayCards,
-        handlePass,
-        isAIThinking,
-        canPass
+    // 修改 handleTurnEnd 函数
+    const handleTurnEnd = () => {
+      console.log('handleTurnEnd called');
+      if (gameState.value === 'END') {
+        console.log('Game has ended, not triggering next player');
+        return;
+      }
+      const nextPlayer = store.state.currentPlayer;
+      console.log(`Next player: ${nextPlayer}`);
+      if (nextPlayer === 1 || nextPlayer === 2) {
+        // 如果下一个玩家是 AI，则延迟一秒后自动出牌
+        setTimeout(() => {
+          console.log(`Triggering AI play for player ${nextPlayer}`);
+          handlePlayCards(nextPlayer);
+        }, 1000);
+      }
+    };
+
+    // 在 setup 函数中监听回合结束事件
+    onMounted(() => {
+      EventBus.on('turnEnd', handleTurnEnd);
+    });
+
+    onUnmounted(() => {
+      EventBus.off('turnEnd', handleTurnEnd);
+    });
+
+    return {
+      backgroundMusic,
+      isMusicPlaying,
+      toggleMusic,
+      gameState,
+      players,
+      currentPlayer,
+      playedCards,
+      winner,
+      startGame,
+      restartGame,
+      handleSelectCard,
+      handlePlayCards,
+      handlePass,
+      isAIThinking,
+      canPass
     };
   },
 };

@@ -67,7 +67,12 @@ export class ProgramPlayer extends Player {
             return null; // Pass if no valid play is found
         }
 
-        // Strategic decision making
+        // 强制出牌逻辑
+        if (this.mustPlay(lastPlayedCards)) {
+            return this.selectForcedPlay(possiblePlays, lastPlayType);
+        }
+
+        // 原有的策略逻辑
         if (this.shouldPlayBomb(possiblePlays, gameState)) {
             return this.findBomb(possiblePlays);
         }
@@ -77,6 +82,30 @@ export class ProgramPlayer extends Player {
         }
 
         return this.playConservatively(possiblePlays);
+    }
+
+    mustPlay(lastPlayedCards) {
+        // 如果是第一个出牌的玩家，必须出牌
+        if (!lastPlayedCards || lastPlayedCards.length === 0) {
+            return true;
+        }
+        // 如果有大于上家的牌，必须出牌
+        return this.findPossiblePlays(getCardPatternType(lastPlayedCards), lastPlayedCards).length > 0;
+    }
+
+    selectForcedPlay(possiblePlays, lastPlayType) {
+        // 在强制出牌的情况下，选择最小的符合条件的牌组
+        const validPlays = possiblePlays.filter(play => {
+            // 确保 play 是一个数组
+            const playArray = Array.isArray(play) ? play : [play];
+            return getCardPatternType(playArray) === lastPlayType;
+        });
+
+        if (validPlays.length > 0) {
+            return this.playConservatively(validPlays);
+        }
+        // 如果没有完全匹配的牌型，就选择炸弹或者最小的可能出牌
+        return this.findBomb(possiblePlays) || this.playConservatively(possiblePlays);
     }
 
     identifyCombinations() {
@@ -132,9 +161,12 @@ export class ProgramPlayer extends Player {
         return true;
     }
 
-    shouldPlayBomb(possiblePlays, gameState) {
+    shouldPlayBomb(possiblePlays) {
         // Play bomb if we're losing or if opponent has very few cards
-        return this.cards.length > 10 && (gameState.opponentCardCount <= 3 || gameState.isLosing);
+        return this.cards.length > 10 && possiblePlays.some(play => {
+            const playArray = Array.isArray(play) ? play : [play];
+            return getCardPatternType(playArray) === 'bomb';
+        });
     }
     findBomb(possiblePlays) {
         return possiblePlays.find(play => getCardPatternType(play) === 'bomb');

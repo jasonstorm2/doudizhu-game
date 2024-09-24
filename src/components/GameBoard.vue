@@ -145,6 +145,8 @@ export default {
           } else {
             // AI 出牌
             store.dispatch('playCards', { playerIndex, cards: result });
+            // 更新对手牌的预测
+            player.updateOpponentCards(result);
           }
         } catch (error) {
           console.error(`Error in AI player ${playerIndex}:`, error);

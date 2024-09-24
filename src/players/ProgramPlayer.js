@@ -1,9 +1,10 @@
 import { Player } from './Player';
-import { isGreaterThanLastPlay, getCardPatternType } from '../api/gameApi';
+import { isGreaterThanLastPlay, getCardPatternType, validateCardPattern } from '../api/gameApi';
 
 export class ProgramPlayer extends Player {
     constructor(id) {
         super(id, 'PROGRAM');
+        this.opponentCards = new Set(['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'Small', 'Big']);
     }
 
     playCards(lastPlayedCards, gameState) {
@@ -36,27 +37,43 @@ export class ProgramPlayer extends Player {
 
     playAsFirstPlayer() {
         const combinations = this.identifyCombinations();
-
-        // Play the smallest single card if we have many cards
-        if (this.cards.length > 10 && combinations.singles.length > 0) {
+        
+        // 优先出单张
+        if (combinations.singles.length > 0) {
+            // 如果有2或者大小王，先出其他的单张
+            const nonPowerfulSingles = combinations.singles.filter(card => !['2', 'Small', 'Big'].includes(card.value));
+            if (nonPowerfulSingles.length > 0) {
+                return [nonPowerfulSingles[0]];
+            }
             return [combinations.singles[0]];
         }
-
-        // Play a small pair if available
+        
+        // 其次出对子
         if (combinations.pairs.length > 0) {
             return combinations.pairs[0];
         }
-
-        // Play a straight if we have one
+        
+        // 再次出三张
+        if (combinations.triples.length > 0) {
+            return combinations.triples[0];
+        }
+        
+        // 最后考虑出顺子
         if (combinations.straights.length > 0) {
             return combinations.straights[0];
         }
-
-        // Default to smallest single card
-        return [this.cards[0]];
+        
+        // 如果都没有，出炸弹
+        if (combinations.bombs.length > 0) {
+            return combinations.bombs[0];
+        }
+        
+        // 默认出最小的牌
+        return [this.findSmallestCard()];
     }
 
     respondToLastPlay(lastPlayedCards, gameState) {
+        this.updateOpponentCards(lastPlayedCards);
         const lastPlayType = getCardPatternType(lastPlayedCards);
         console.log('Last play type:', lastPlayType);
         const possiblePlays = this.findPossiblePlays(lastPlayType, lastPlayedCards);
@@ -73,12 +90,20 @@ export class ProgramPlayer extends Player {
         }
 
         // 原有的策略逻辑
-        if (this.shouldPlayBomb(possiblePlays, gameState)) {
+        if (this.shouldPlayBomb(possiblePlays)) {
             return this.findBomb(possiblePlays);
         }
 
         if (this.cards.length <= 5) {
             return this.playAggressively(possiblePlays);
+        }
+
+        if (this.shouldControl(possiblePlays, gameState)) {
+            return this.playControlStrategy(possiblePlays);
+        }
+
+        if (this.shouldBait(possiblePlays, gameState)) {
+            return this.playBaitStrategy(possiblePlays);
         }
 
         return this.playConservatively(possiblePlays);
@@ -162,11 +187,11 @@ export class ProgramPlayer extends Player {
     }
 
     shouldPlayBomb(possiblePlays) {
-        // Play bomb if we're losing or if opponent has very few cards
-        return this.cards.length > 10 && possiblePlays.some(play => {
-            const playArray = Array.isArray(play) ? play : [play];
-            return getCardPatternType(playArray) === 'bomb';
-        });
+        const handStrength = this.evaluateHandStrength();
+        const opponentCardsCount = this.opponentCards.size;
+        
+        // 如果手牌很强或者对手牌很少，才出炸弹
+        return (handStrength > 20 || opponentCardsCount < 5) && possiblePlays.some(play => getCardPatternType(play) === 'bomb');
     }
     findBomb(possiblePlays) {
         return possiblePlays.find(play => getCardPatternType(play) === 'bomb');
@@ -188,7 +213,7 @@ export class ProgramPlayer extends Player {
         // 根据上一次出牌的类型来筛选可能的出牌
         switch(lastPlayType) {
             case 'single':
-                possiblePlays.push(...combinations.singles.filter(card => isGreaterThanLastPlay([card], lastPlayedCards)));
+                possiblePlays.push(...combinations.singles.map(card => [card]).filter(play => isGreaterThanLastPlay(play, lastPlayedCards)));
                 break;
             case 'pair':
                 possiblePlays.push(...combinations.pairs.filter(pair => isGreaterThanLastPlay(pair, lastPlayedCards)));
@@ -207,8 +232,28 @@ export class ProgramPlayer extends Player {
         // 总是考虑炸弹
         possiblePlays.push(...combinations.bombs);
 
+        // 如果没有找到合适的组合，尝试拆牌
+        if (possiblePlays.length === 0) {
+            possiblePlays.push(...this.findSplitPlays(lastPlayType, lastPlayedCards));
+        }
+
         // 移除重复的出牌选择
         return Array.from(new Set(possiblePlays.map(JSON.stringify))).map(JSON.parse);
+    }
+
+    findSplitPlays(lastPlayType, lastPlayedCards) {
+        const possiblePlays = [];
+        const cardCount = lastPlayedCards.length;
+
+        // 尝试拆分手牌来满足出牌要求
+        for (let i = 0; i <= this.cards.length - cardCount; i++) {
+            const candidatePlay = this.cards.slice(i, i + cardCount);
+            if (validateCardPattern(candidatePlay) && getCardPatternType(candidatePlay) === lastPlayType && isGreaterThanLastPlay(candidatePlay, lastPlayedCards)) {
+                possiblePlays.push(candidatePlay);
+            }
+        }
+
+        return possiblePlays;
     }
 
     // 新增方法：更新选中的卡片
@@ -248,5 +293,45 @@ export class ProgramPlayer extends Player {
     compareCards(card1, card2) {
         const order = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'Small', 'Big'];
         return order.indexOf(card1.value) - order.indexOf(card2.value);
+    }
+
+    evaluateHandStrength() {
+        const combinations = this.identifyCombinations();
+        let score = 0;
+        
+        score += combinations.singles.length * 1;
+        score += combinations.pairs.length * 3;
+        score += combinations.triples.length * 6;
+        score += combinations.straights.length * 10;
+        score += combinations.bombs.length * 15;
+        
+        // 考虑剩余牌数
+        score -= this.cards.length * 0.5;
+        
+        return score;
+    }
+
+    updateOpponentCards(playedCards) {
+        playedCards.forEach(card => this.opponentCards.delete(card.value));
+    }
+
+    shouldControl(possiblePlays) {
+        // 如果我们有多个选择，并且对手牌数较少，考虑控制
+        return possiblePlays.length > 2 && this.opponentCards.size < 10;
+    }
+
+    playControlStrategy(possiblePlays) {
+        // 出中等大小的牌，保留最大的
+        return possiblePlays[Math.floor(possiblePlays.length / 2)];
+    }
+
+    shouldBait() {
+        // 如果我们手牌很好，考虑诱导对手出大牌
+        return this.evaluateHandStrength() > 25 && this.cards.length < 10;
+    }
+
+    playBaitStrategy(possiblePlays) {
+        // 出较小的牌，诱导对手出大牌
+        return possiblePlays[0];
     }
 }

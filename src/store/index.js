@@ -57,7 +57,7 @@ const gameInfo = {
   "game": "跑得快",
   "players": "3或更多",
   "deck": "54张扑克牌（包括大小王）",
-  "winning_condition": "先出��牌的玩家获胜。",
+  "winning_condition": "先出牌的玩家获胜。",
   "playing_rules": [
     {
       "rule_no": 1,
@@ -129,6 +129,7 @@ export default createStore({
     lastValidPlayPlayer: null, // 记录最后一个有效出牌的玩家
     currentRoundStartPlayer: null, // 记录当前小轮的首发玩家
     gameInfo: gameInfo,//给ai的信息
+    testMode: false,
   },
 
   mutations: {
@@ -216,6 +217,18 @@ export default createStore({
     SORT_PLAYER_CARDS(state, playerIndex) {
       state.players[playerIndex].cards.sort(compareCards);
     },
+    SET_TEST_MODE(state, isTestMode) {
+      state.testMode = isTestMode;
+    },
+    SET_PLAYER_CARDS(state, { playerIndex, cards }) {
+      state.players[playerIndex].cards = cards;
+    },
+    SET_LAST_PLAYED_CARDS(state, cards) {
+      state.lastPlayedCards = cards;
+    },
+    SET_CURRENT_PLAYER(state, playerIndex) {
+      state.currentPlayer = playerIndex;
+    },
   },
 
   actions: {
@@ -284,6 +297,14 @@ export default createStore({
     },
     sortPlayerCards({ commit }, playerIndex) {
       commit('SORT_PLAYER_CARDS', playerIndex);
+    },
+    setupTestScenario({ commit }, { player0Cards, player1Cards, player2Cards, lastPlayedCards, currentPlayer }) {
+      commit('SET_TEST_MODE', true);
+      commit('SET_PLAYER_CARDS', { playerIndex: 0, cards: player0Cards });
+      commit('SET_PLAYER_CARDS', { playerIndex: 1, cards: player1Cards });
+      commit('SET_PLAYER_CARDS', { playerIndex: 2, cards: player2Cards });
+      commit('SET_LAST_PLAYED_CARDS', lastPlayedCards);
+      commit('SET_CURRENT_PLAYER', currentPlayer);
     },
   },
 

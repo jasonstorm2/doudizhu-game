@@ -39,6 +39,7 @@
       </div>
     </template>
     <victory-screen v-if="gameState === 'END'" :winner="winner" @restart="restartGame" />
+    <button @click="setupTestScenario" v-if="gameState === 'START'">设置测试场景</button>
   </div>
 </template>
 
@@ -52,12 +53,14 @@ import StartScreen from './StartScreen.vue';
 import VictoryScreen from './VictoryScreen.vue';
 import { AIPlayer } from '../players/AIPlayer';
 import { ProgramPlayer } from '../players/ProgramPlayer';
+import { useTestScenarios } from '../utils/testScenarios'; // 导入新的函数
 
 export default {
   name: 'GameBoard',
   components: { StartScreen, PlayerHand, PlayedCards, VictoryScreen },
   setup() {
     const store = useStore();
+    const { setupTestScenario } = useTestScenarios(); // 使用新的函数
     const isAIThinking = ref(false);
     const isMusicPlaying = ref(false);
     const backgroundMusic = ref(null);
@@ -77,12 +80,14 @@ export default {
     });
 
     const startGame = () => {
-      store.dispatch('startGame');
-      players.value.forEach((player, index) => {
-        player.cards = store.state.players[index].cards;
-      });
-      for (let i = 0; i < 3; i++) {
-        store.dispatch('sortPlayerCards', i);
+      if (!store.state.testMode) {
+        store.dispatch('startGame');
+        players.value.forEach((player, index) => {
+          player.cards = store.state.players[index].cards;
+        });
+        for (let i = 0; i < 3; i++) {
+          store.dispatch('sortPlayerCards', i);
+        }
       }
       playBackgroundMusic();
     };
@@ -217,7 +222,8 @@ export default {
       handlePlayCards,
       handlePass,
       isAIThinking,
-      canPass
+      canPass,
+      setupTestScenario
     };
   },
 };

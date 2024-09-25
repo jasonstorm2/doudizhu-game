@@ -16,13 +16,13 @@
             <player-hand :cards="players[1].cards" :isCurrentPlayer="currentPlayer === 1"
               @select-card="(cardIndex) => handleSelectCard(1, cardIndex)" />
             <button @click="handlePlayCards(1)" :disabled="currentPlayer !== 1">出牌</button>
-            <button @click="handlePass(1)" :disabled="currentPlayer !== 1 || !canPass(1)">过牌</button>
+            <button @click="handlePass(1)">过牌</button>
           </div>
           <div class="player player-2">
             <player-hand :cards="players[2].cards" :isCurrentPlayer="currentPlayer === 2"
               @select-card="(cardIndex) => handleSelectCard(2, cardIndex)" />
             <button @click="handlePlayCards(2)" :disabled="currentPlayer !== 2">AI 出牌</button>
-            <button @click="handlePass(2)" :disabled="currentPlayer !== 2 || !canPass(2)">AI 过牌</button>
+            <button @click="handlePass(2)">AI 过牌</button>
           </div>
         </div>
 
@@ -34,7 +34,7 @@
           <player-hand :cards="players[0].cards" :isCurrentPlayer="currentPlayer === 0"
             @select-card="(cardIndex) => handleSelectCard(0, cardIndex)" />
           <button @click="handlePlayCards(0)" :disabled="currentPlayer !== 0">出牌</button>
-          <button @click="handlePass(0)" :disabled="currentPlayer !== 0 || !canPass(0)">过牌</button>
+          <button @click="handlePass(0)">过牌</button>
         </div>
       </div>
     </template>

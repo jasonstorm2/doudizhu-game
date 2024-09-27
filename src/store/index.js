@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, isGreaterThanLastPlay, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
+import { validateCardPattern, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
 import { HumanPlayer } from '../players/HumanPlayer';
 import { ProgramPlayer } from '../players/ProgramPlayer';
 // import { AIPlayer } from '../players/AIPlayer';
@@ -77,7 +77,7 @@ const gameInfo = {
     },
     {
       "rule_no": 5,
-      "description": "如果玩家非首发，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌。"
+      "description": "如果玩家非首，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌。"
     },
     {
       "rule_no": 6,
@@ -115,9 +115,7 @@ export default createStore({
     players: [
       new HumanPlayer(0),
       new ProgramPlayer(1),
-      new HumanPlayer(2),
-
-      // new AIPlayer(2)
+      new ProgramPlayer(2),
     ],
     currentPlayer: 0,
     playedCards: [],
@@ -158,27 +156,33 @@ export default createStore({
         }
       }
     },
-    PLAY_CARDS(state, playerIndex) {
+    PLAY_CARDS(state, { playerIndex, cards }) {
       const player = state.players[playerIndex];
-      if (player.selectedCards.length > 0 && validateCardPattern(player.selectedCards)) {
-        state.playedCards = [...player.selectedCards];
-        sortCards(state.playedCards);
-        state.lastPlayedCards = [...player.selectedCards];
-        state.lastPlayedType = getCardPatternType([...player.selectedCards]);
-        state.lastValidPlayPlayer = playerIndex;
-        player.cards = player.cards.filter(card => !card.selected);
-        player.selectedCards = [];
-        state.currentPlayer = (state.currentPlayer + 1) % 3;
-        state.passCount = 0;
-        //记录ai的信息
-        state.gameInfo.lastPlayedCards = convertCards(state.lastPlayedCards);
-        state.gameInfo.historyInfo.history.push(convertCards(state.lastPlayedCards));
+      try {
+        if (cards.length > 0 && validateCardPattern(cards)) {
+          state.playedCards = [...cards];
+          sortCards(state.playedCards);
+          state.lastPlayedCards = [...cards];
+          state.lastPlayedType = getCardPatternType([...cards]);
+          state.lastValidPlayPlayer = playerIndex;
+          player.cards = player.cards.filter(card => !cards.some(c => c.value === card.value && c.suit === card.suit));
+          player.selectedCards = [];
+          state.currentPlayer = (state.currentPlayer + 1) % 3;
+          state.passCount = 0;
+          //记录ai的信息
+          state.gameInfo.lastPlayedCards = convertCards(state.lastPlayedCards);
+          state.gameInfo.historyInfo.history.push(convertCards(state.lastPlayedCards));
 
-        // 如果其他两名玩家都没有牌，开始新的小轮
-        if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
-          state.players[(playerIndex + 2) % 3].cards.length === 0) {
-          state.currentRoundStartPlayer = playerIndex;
+          // 如果其他两名玩家都没有牌，开始新的小轮
+          if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
+            state.players[(playerIndex + 2) % 3].cards.length === 0) {
+            state.currentRoundStartPlayer = playerIndex;
+          }
         }
+      } catch (error) {
+        console.error(error);
+        // 在这里触发一个事件来显示错误消息
+        EventBus.emit('show-alert', error.message);
       }
     },
 
@@ -252,6 +256,14 @@ export default createStore({
         return;
       }
 
+      // 创建一个包含必要信息的 gameState 对象
+      const gameState = {
+        "你目前的手牌": player.cards.map(card => card.value),
+        "上家出牌": state.lastPlayedCards ? state.lastPlayedCards.map(card => card.value) : [],
+        "玩家出牌历史": state.gameInfo.historyInfo.history,
+        "上家牌型": state.lastPlayedType
+      };
+
       const selectedCards = cards || player.selectedCards;
       if (!selectedCards) {
         console.error(`selectedCards for player ${playerIndex} is undefined`);
@@ -262,21 +274,27 @@ export default createStore({
       console.log("开始出牌，牌的内容");
       console.log(selectedCards);
 
-      if (validateCardPattern(selectedCards)) {
-        if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
-          commit('PLAY_CARDS', playerIndex);
-          if (player.cards.length === 0) {
-            commit('SET_WINNER', playerIndex);
-          }
+      try {
+        // 如果是 AI 玩家，调用其 playCards 方法并传递 gameState
+        if (player.type === 'PROGRAM') {
+          const aiCards = player.playCards(state.lastPlayedCards, gameState);
+          // 使用 AI 返回的牌
+          commit('PLAY_CARDS', { playerIndex, cards: aiCards });
         } else {
-          dispatch('showAlert', '出的牌必须大于上家的牌！');
+          // 对于人类玩家，使用选中的牌
+          commit('PLAY_CARDS', { playerIndex, cards: selectedCards });
         }
-      } else {
-        dispatch('showAlert', '无效的牌型！');
-      }
 
-      // 在 action 结束时触发 turnEnd 事件
-      EventBus.emit('turnEnd');
+        if (player.cards.length === 0) {
+          commit('SET_WINNER', playerIndex);
+        }
+
+        // 在 action 结束时触发 turnEnd 事件
+        EventBus.emit('turnEnd');
+      } catch (error) {
+        console.error(error);
+        dispatch('showAlert', error.message);
+      }
     },
 
 

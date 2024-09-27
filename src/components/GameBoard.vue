@@ -196,7 +196,7 @@ export default {
         setTimeout(() => {
           console.log(`Triggering AI play for player ${nextPlayer}`);
           handlePlayCards(nextPlayer);
-        }, 1000);
+        }, 4000);
       }
     };
 

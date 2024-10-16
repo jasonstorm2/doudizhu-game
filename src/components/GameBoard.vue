@@ -54,6 +54,7 @@ import VictoryScreen from './VictoryScreen.vue';
 import { AIPlayer } from '../players/AIPlayer';
 import { ProgramPlayer } from '../players/ProgramPlayer';
 import { useTestScenarios } from '../utils/testScenarios'; // 导入新的函数
+import { gameManager } from '../managers/GameManager';
 
 export default {
   name: 'GameBoard',
@@ -112,7 +113,10 @@ export default {
       }
     };
 
-    const restartGame = () => store.dispatch('restartGame');
+    const restartGame = () => {
+      store.dispatch('restartGame');
+      gameManager.resetPlayedCards();
+    };
 
     const handleSelectCard = (playerIndex, cardIndex) =>
       players.value[playerIndex].selectCard(cardIndex);
@@ -133,20 +137,18 @@ export default {
           const gameState = {
             "你目前的手牌": player.cards.map(card => card.value),
             "上家出牌": lastPlayedCards ? lastPlayedCards.map(card => card.value) : [],
-            "玩家出牌历史": store.state.gameInfo.historyInfo.history,
+            "玩家出牌历史": gameManager.getPlayedCards(),
             "上家牌型": store.state.lastPlayedType
           };
           const result = await player.playCards(lastPlayedCards, gameState);
           console.log(`AI player ${playerIndex} decided to play:`, result);
-          if (result === null) {
+          if (result !== null) {
+            store.dispatch('playCards', { playerIndex, cards: result });
+            gameManager.addPlayedCards(result, playerIndex); // 修改这里，添加 playerIndex
+          } else {
             // AI 决定过牌
             console.log(`AI player ${playerIndex} decided to pass`);
             handlePass(playerIndex);
-          } else {
-            // AI 出牌
-            store.dispatch('playCards', { playerIndex, cards: result });
-            // 更新对手牌的预测
-            player.updateOpponentCards(result);
           }
         } catch (error) {
           console.error(`Error in AI player ${playerIndex}:`, error);
@@ -157,11 +159,13 @@ export default {
       } else {
         // 人类玩家逻辑
         const selectedCards = player.cards.filter(card => card.selected);
-        if (selectedCards.length === 0) {
+        if (selectedCards.length > 0) {
+          store.dispatch('playCards', { playerIndex, cards: selectedCards });
+          gameManager.addPlayedCards(selectedCards, playerIndex); // 修改这里，添加 playerIndex
+        } else {
           EventBus.emit('show-alert', '请选择要出的牌');
           return;
         }
-        store.dispatch('playCards', { playerIndex, cards: selectedCards });
       }
     };
 

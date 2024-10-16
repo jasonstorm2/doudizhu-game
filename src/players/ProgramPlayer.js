@@ -1,5 +1,6 @@
 import { Player } from './Player';
 import { isGreaterThanLastPlay, getCardPatternType, validateCardPattern, sortCards, isConsecutivePairs } from '../api/gameApi';
+import { gameManager } from '../managers/GameManager';
 
 export class ProgramPlayer extends Player {
     constructor(id) {
@@ -540,7 +541,7 @@ export class ProgramPlayer extends Player {
 
     updateOpponentCards(playedCards) {
         playedCards.forEach(card => this.opponentCards.delete(card.value));
-        this.playedCards = this.playedCards.concat(playedCards);
+        gameManager.addPlayedCards(playedCards);
     }
 
     updateGamePhase(gameState) {
@@ -626,9 +627,9 @@ export class ProgramPlayer extends Player {
 
         const handStrength = this.evaluateHandStrength();
         const playerCards = gameState["你目前的手牌"] || [];
-        const playHistory = gameState["玩家出牌历史"] || [];
+        const playedCards = gameManager.getPlayedCards();
 
-        const estimatedOpponentCards = 54 - playerCards.length - playHistory.flat().length;
+        const estimatedOpponentCards = 54 - playerCards.length - playedCards.length;
 
         if (this.gamePhase === 'early') {
             return this.playConservatively(possiblePlays);

@@ -50,6 +50,12 @@ export class ProgramPlayer extends Player {
         const handStrength = this.evaluateHandStrength();
         const remainingCards = this.estimateRemainingCards();
 
+        // 优先出不能形成顺子的小牌
+        const singleCards = this.findDisconnectedSingles(combinations.singles);
+        if (singleCards.length > 0) {
+            return [singleCards[0]];
+        }
+
         if (handStrength > 25 || this.cards.length <= 5) {
             return this.playAggressiveStrategy(combinations);
         }
@@ -61,6 +67,29 @@ export class ProgramPlayer extends Player {
         return this.playBalancedStrategy(combinations, remainingCards);
     }
 
+    findDisconnectedSingles(singles) {
+        const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const sortedSingles = singles.sort((a, b) => values.indexOf(a.value) - values.indexOf(b.value));
+        const disconnected = [];
+
+        for (let i = 0; i < sortedSingles.length; i++) {
+            if (i === 0 || i === sortedSingles.length - 1) {
+                if (sortedSingles.length < 5) {
+                    disconnected.push(sortedSingles[i]);
+                }
+            } else {
+                const prev = values.indexOf(sortedSingles[i - 1].value);
+                const curr = values.indexOf(sortedSingles[i].value);
+                const next = values.indexOf(sortedSingles[i + 1].value);
+                if (curr - prev > 1 && next - curr > 1) {
+                    disconnected.push(sortedSingles[i]);
+                }
+            }
+        }
+
+        return disconnected;
+    }
+
     playAggressiveStrategy(combinations) {
         if (combinations.bombs.length > 0) return combinations.bombs[0];
         if (combinations.consecutivePairs.length > 0) return combinations.consecutivePairs[0];
@@ -69,7 +98,11 @@ export class ProgramPlayer extends Player {
         if (combinations.triples.length > 0) return combinations.triples[0];
         if (combinations.straights.length > 0) return combinations.straights[0];
         if (combinations.pairs.length > 0) return combinations.pairs[0];
-        if (combinations.singles.length > 0) return [combinations.singles[0]];
+        if (combinations.singles.length > 0) {
+            const smallSingles = combinations.singles.filter(card => ['3', '4', '5', '6', '7'].includes(card.value));
+            if (smallSingles.length > 0) return [smallSingles[0]];
+            return [combinations.singles[0]];
+        }
         return [this.findSmallestCard()];
     }
 
@@ -93,6 +126,12 @@ export class ProgramPlayer extends Player {
     }
 
     playBalancedStrategy(combinations, remainingCards) {
+        // 优先出不能形成顺子的小牌
+        const disconnectedSingles = this.findDisconnectedSingles(combinations.singles);
+        if (disconnectedSingles.length > 0) {
+            return [disconnectedSingles[0]];
+        }
+
         if (remainingCards.singles > remainingCards.pairs && remainingCards.singles > remainingCards.triples) {
             if (combinations.pairs.length > 0) return combinations.pairs[0];
             if (combinations.consecutivePairs.length > 0) return combinations.consecutivePairs[0];
@@ -175,8 +214,49 @@ export class ProgramPlayer extends Player {
             selectedPlay = this.playStrategically(possiblePlays, gameState);
         }
 
+        // 如果选择的是对子，考虑拆对子以形成更好的牌型
+        if (selectedPlay && selectedPlay.length === 2 && selectedPlay[0].value === selectedPlay[1].value) {
+            const potentialStraight = this.canFormBetterHandAfterSplittingPair(selectedPlay);
+            if (potentialStraight) {
+                selectedPlay = [selectedPlay[0]];
+            }
+        }
+
         console.log('Selected play:', selectedPlay);
         return selectedPlay;
+    }
+
+    canFormBetterHandAfterSplittingPair(pair) {
+        const remainingCards = this.cards.filter(card => !pair.includes(card));
+        const potentialStraight = this.findLongestPotentialStraight([...remainingCards, pair[0]]);
+        return potentialStraight.length >= 5;
+    }
+
+    findLongestPotentialStraight(cards) {
+        const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const sortedCards = cards.sort((a, b) => values.indexOf(a.value) - values.indexOf(b.value));
+        let longestStraight = [];
+        let currentStraight = [sortedCards[0]];
+
+        for (let i = 1; i < sortedCards.length; i++) {
+            const prevIndex = values.indexOf(sortedCards[i - 1].value);
+            const currIndex = values.indexOf(sortedCards[i].value);
+
+            if (currIndex - prevIndex === 1 || currIndex - prevIndex === 0) {
+                currentStraight.push(sortedCards[i]);
+            } else {
+                if (currentStraight.length > longestStraight.length) {
+                    longestStraight = [...currentStraight];
+                }
+                currentStraight = [sortedCards[i]];
+            }
+        }
+
+        if (currentStraight.length > longestStraight.length) {
+            longestStraight = currentStraight;
+        }
+
+        return longestStraight;
     }
 
     mustPlay(lastPlayedCards) {

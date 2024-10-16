@@ -21,9 +21,9 @@ export class ProgramPlayer extends Player {
 
         console.log('ProgramPlayer decided to play:', cardsToPlay);
 
-        // 如果是首家出牌，确保一定会出牌
-        if ((!lastPlayedCards || lastPlayedCards.length === 0) && (!cardsToPlay || cardsToPlay.length === 0)) {
-            console.log('First player must play cards, selecting smallest card');
+        // 如果是首家出牌或者有可以出的牌，确保一定会出牌
+        if ((!lastPlayedCards || lastPlayedCards.length === 0 || cardsToPlay) && (!cardsToPlay || cardsToPlay.length === 0)) {
+            console.log('Must play cards, selecting smallest card');
             cardsToPlay = [this.findSmallestCard()];
         }
 
@@ -36,7 +36,7 @@ export class ProgramPlayer extends Player {
         cardsToPlay = cardsToPlay.filter(card => card && card.value);
 
         if (cardsToPlay.length === 0) {
-            console.error('No valid cards to play');
+            console.error('No valid cards to play, this should not happen');
             return null;
         }
 
@@ -197,7 +197,13 @@ export class ProgramPlayer extends Player {
         console.log('Possible plays:', possiblePlays);
 
         if (!Array.isArray(possiblePlays) || possiblePlays.length === 0) {
-            console.log('No valid plays found, must pass');
+            console.log('No valid plays found, checking for bomb');
+            const bomb = this.findBomb(this.cards);
+            if (bomb) {
+                console.log('Found bomb:', bomb);
+                return bomb;
+            }
+            console.log('No bomb found, must pass');
             return null;
         }
 
@@ -382,8 +388,23 @@ export class ProgramPlayer extends Player {
         
         return (handStrength > 20 || opponentCardsCount < 5) && hasBomb;
     }
-    findBomb(possiblePlays) {
-        return possiblePlays.find(play => getCardPatternType(play) === 'bomb');
+    findBomb(cards) {
+        // 检查王炸
+        const jokers = cards.filter(card => card.value === 'Small' || card.value === 'Big');
+        if (jokers.length === 2) {
+            return jokers;
+        }
+
+        // 检查普通炸弹
+        for (let i = 0; i < cards.length - 3; i++) {
+            if (cards[i].value === cards[i+1].value && 
+                cards[i].value === cards[i+2].value && 
+                cards[i].value === cards[i+3].value) {
+                return cards.slice(i, i+4);
+            }
+        }
+
+        return null;
     }
 
     playAggressively(possiblePlays) {

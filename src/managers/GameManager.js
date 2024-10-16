@@ -10,10 +10,11 @@ export class GameManager {
 
     addPlayedCards(cards, playerIndex) {
         this.playedCards = this.playedCards.concat(cards);
-        // 新增：记录玩家出牌
-        this.playerMoves.push({ playerIndex, cards });
+        // 确保 playerIndex 是有效的
+        const safePlayerIndex = playerIndex !== undefined ? playerIndex : 'Unknown';
+        this.playerMoves.push({ playerIndex: safePlayerIndex, cards });
         // 打印到控制台
-        console.log(`Player ${playerIndex} played:`, cards.map(card => card.value).join(', '));
+        console.log(`Player ${safePlayerIndex} played:`, cards.map(card => card.value).join(', '));
     }
 
     getPlayedCards() {

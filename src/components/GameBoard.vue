@@ -144,7 +144,7 @@ export default {
           console.log(`AI player ${playerIndex} decided to play:`, result);
           if (result !== null) {
             store.dispatch('playCards', { playerIndex, cards: result });
-            gameManager.addPlayedCards(result, playerIndex); // 修改这里，添加 playerIndex
+            gameManager.addPlayedCards(result, playerIndex);
           } else {
             // AI 决定过牌
             console.log(`AI player ${playerIndex} decided to pass`);
@@ -161,7 +161,7 @@ export default {
         const selectedCards = player.cards.filter(card => card.selected);
         if (selectedCards.length > 0) {
           store.dispatch('playCards', { playerIndex, cards: selectedCards });
-          gameManager.addPlayedCards(selectedCards, playerIndex); // 修改这里，添加 playerIndex
+          gameManager.addPlayedCards(selectedCards, playerIndex);
         } else {
           EventBus.emit('show-alert', '请选择要出的牌');
           return;

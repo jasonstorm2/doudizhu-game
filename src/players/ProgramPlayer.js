@@ -562,7 +562,7 @@ export class ProgramPlayer extends Player {
 
     updateOpponentCards(playedCards) {
         playedCards.forEach(card => this.opponentCards.delete(card.value));
-        gameManager.addPlayedCards(playedCards);
+        gameManager.addPlayedCards(playedCards, this.id);  // 使用 this.id 作为 playerIndex
     }
 
     updateGamePhase(gameState) {

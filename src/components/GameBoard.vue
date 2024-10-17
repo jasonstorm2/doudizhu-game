@@ -158,6 +158,11 @@ export default {
         }
       } else {
         // 人类玩家逻辑
+        const result = await player.playCards(lastPlayedCards, gameState);
+        if(!result){
+          return;
+        }
+
         const selectedCards = player.cards.filter(card => card.selected);
         if (selectedCards.length > 0) {
           store.dispatch('playCards', { playerIndex, cards: selectedCards });

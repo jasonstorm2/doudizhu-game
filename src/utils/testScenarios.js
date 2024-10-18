@@ -11,9 +11,21 @@ export function useTestScenarios() {
       { suit: '♠', value: 'Q', selected: false },
       { suit: '♥', value: 'Q', selected: false },
       { suit: '♣', value: '9', selected: false },
-      { suit: '♣', value: '9', selected: false },
+      { suit: '♣', value: '8', selected: false },
       { suit: '♦', value: '7', selected: false },
       { suit: '♠', value: '3', selected: false },
+      { suit: '♠', value: 'J', selected: false },
+      { suit: '♠', value: 'J', selected: false },
+      { suit: '♠', value: 'J', selected: false },
+      { suit: '♠', value: '3', selected: false },
+      { suit: '♠', value: '3', selected: false },
+      { suit: '♠', value: '4', selected: false },
+      { suit: '♠', value: '4', selected: false },
+      { suit: '♠', value: '5', selected: false },
+      { suit: '♠', value: '5', selected: false },
+      { suit: '♠', value: '6', selected: false },
+
+
     ];
     const player1Cards = [
       { suit: '♠', value: '10', selected: false },

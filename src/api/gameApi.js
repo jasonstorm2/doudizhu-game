@@ -56,7 +56,7 @@ export function validateCardPattern(cards, throwError = true) {
     return false;
   }
 
-  sortCards(cards);
+  cards = sortCards(cards);
 
   if (cards.length === 1) return true; // 单牌
   if (cards.length === 2) {
@@ -675,7 +675,7 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
       return triple; // 如果少于三张牌，直接返回空数组
     }
     for (let i = 0; i < cards.length - 2; i++) {
-      // 如果当前卡牌和接下来的两张卡牌值相同，���为三张
+      // 如果当前卡牌和接下来的两张卡牌值相同，为三张
       if (cards[i].value === cards[i + 1].value && cards[i].value === cards[i + 2].value) {
         triple.push([cards[i], cards[i + 1], cards[i + 2]]);
         // 跳过接下来的两张卡牌，因为它们已经被使用了
@@ -743,7 +743,11 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
 
 }
 
-
+/**
+ * 通用的整理牌型的方法，按照牌型进行排序，但是对于从大到小的牌，需要另外处理
+ * @param {*} cards 
+ * @returns 
+ */
 export function sortCards(cards) {
   // 首先过滤掉无效的卡牌
   const validCards = cards.filter(card => card && card.value);

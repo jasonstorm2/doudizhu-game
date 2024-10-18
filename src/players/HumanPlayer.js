@@ -8,15 +8,20 @@ export class HumanPlayer extends Player {
   }
 
   playCards(lastPlayedCards) {
-    if (validateCardPattern(this.selectedCards)) {
-      if (!lastPlayedCards || isGreaterThanLastPlay(this.selectedCards, lastPlayedCards)) {
-        return this.selectedCards;
+    try {
+      if (validateCardPattern(this.selectedCards)) {
+        if (!lastPlayedCards || isGreaterThanLastPlay(this.selectedCards, lastPlayedCards)) {
+          return this.selectedCards;
+        } else {
+          EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
+        }
       } else {
-        EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
+        EventBus.emit('show-alert', '无效的牌型啦！');
       }
-    } else {
-      EventBus.emit('show-alert', '无效的牌型啦！');
+    } catch (error) {
+      EventBus.emit('show-alert', error.message);
     }
+
     return null;
   }
 }

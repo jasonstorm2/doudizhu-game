@@ -22,7 +22,6 @@ export class Player {
   }
 
   playCards() {
-    throw new Error("Method 'playCards()' must be implemented.");
   }
 
   canPass(lastPlayedCards, isFirstPlayer) {

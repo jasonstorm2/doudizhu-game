@@ -7,7 +7,7 @@ export class ProgramPlayer extends Player {
         super(id, 'PROGRAM');
         this.opponentCards = new Set(['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'Small', 'Big']);
         this.gamePhase = 'early'; // 新增：游戏阶段跟踪
-        this.playedCards = []; // 添加这行来初始化 playedCards
+        this.playedCards = []; // 添加这行来初始化 playedCards /
     }
 
     playCards(lastPlayedCards, gameState) {

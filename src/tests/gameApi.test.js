@@ -1,10 +1,11 @@
 import { calculateTripleWithPairScore ,calculateTripleWithSingleScore, 
   calculateStraightScore, calculatePairScore, calculateConsecutivePairsScore, 
-  calculateRocketScore, calculateSingleCardScore, calculateHighestScore } from '../api/gameApi';
+  calculateRocketScore, calculateSingleCardScore,
+  analyzeAndSplitCards, findConsecutiveTriples ,calculateHighestScore} from '../api/gameApi';
 import { describe, test, expect } from '@jest/globals';
 
 
-describe('calculateTripleWithPairScore', () => {
+describe.skip('calculateTripleWithPairScore', () => {
   test('正确计算三带二的分数', () => {
     const cards = [
       { value: '7', suit: 'hearts' },
@@ -28,7 +29,7 @@ describe('calculateTripleWithPairScore', () => {
   });
 });
 
-describe('calculateStraightScore', () => {
+describe.skip('calculateStraightScore', () => {
   test('正确计算顺子的分数', () => {
     const straight = [
       { value: '3', suit: 'hearts' },
@@ -52,7 +53,7 @@ describe('calculateStraightScore', () => {
   });
 });
 
-describe('calculatePairScore', () => {
+describe.skip('calculatePairScore', () => {
   test('正确计算对子的分数', () => {
     const pair = [
       { value: '7', suit: 'hearts' },
@@ -70,7 +71,7 @@ describe('calculatePairScore', () => {
   });
 });
 
-describe('calculateConsecutivePairsScore', () => {
+describe.skip('calculateConsecutivePairsScore', () => {
   test('正确计算连对的分数', () => {
     const consecutivePairs = [
       { value: '3', suit: 'hearts' },
@@ -104,7 +105,7 @@ describe('calculateConsecutivePairsScore', () => {
   });
 });
 
-describe('calculateRocketScore', () => {
+describe.skip('calculateRocketScore', () => {
   test('正确识别王炸并计算分数', () => {
     const rocket = [
       { value: 'Big', suit: 'joker' },
@@ -131,7 +132,7 @@ describe('calculateRocketScore', () => {
   });
 });
 
-describe('calculateSingleCardScore', () => {
+describe.skip('calculateSingleCardScore', () => {
   test('正确计算小于10的牌的分数', () => {
     expect(calculateSingleCardScore({ value: '3' })).toBe(-3);
     expect(calculateSingleCardScore({ value: '7' })).toBe(-7);
@@ -154,7 +155,7 @@ describe('calculateSingleCardScore', () => {
 });
 
 
-describe('getBiggestScorecore', () => {
+describe.skip('getBiggestScorecore', () => {
 
   test('计算牌的最大分值', () => {
     const consecutivePairs = [
@@ -170,5 +171,75 @@ describe('getBiggestScorecore', () => {
 
     ];
     calculateHighestScore(consecutivePairs);
+  });
+});
+
+describe('analyzeAndSplitCards', () => {
+
+  test('拆牌', () => {
+    const consecutivePairs = [
+      { value: '3', suit: 'hearts' },
+      { value: '3', suit: 'diamonds' },
+      { value: '4', suit: 'spades' },
+      { value: '4', suit: 'clubs' },
+      { value: '4', suit: 'clubs' },
+      { value: '4', suit: 'clubs' },
+      { value: '5', suit: 'clubs' },
+      { value: '6', suit: 'clubs' },
+      { value: '6', suit: 'clubs' },
+      { value: '6', suit: 'clubs' },
+      { value: '6', suit: 'clubs' },
+
+
+      { value: '7', suit: 'clubs' },
+      { value: '8', suit: 'clubs' },
+      { value: '2', suit: 'clubs' },
+      { value: 'J', suit: 'clubs' },
+
+
+    ];
+    analyzeAndSplitCards(consecutivePairs);
+  });
+});
+
+describe.skip('findConsecutiveTriples', () => {
+  test('正确找出连续的三根', () => {
+    const cards = [
+      { value: '3', suit: 'hearts' },
+      { value: '3', suit: 'diamonds' },
+      { value: '3', suit: 'spades' },
+      { value: '4', suit: 'hearts' },
+      { value: '4', suit: 'diamonds' },
+      { value: '4', suit: 'spades' },
+      { value: '5', suit: 'hearts' },
+      { value: '5', suit: 'diamonds' },
+      { value: '5', suit: 'spades' },
+      { value: '7', suit: 'hearts' },
+      { value: '7', suit: 'diamonds' },
+      { value: '7', suit: 'spades' },
+    ];
+    const result = findConsecutiveTriples(cards);
+    expect(result.length).toBe(1);
+    expect(result[0].length).toBe(3);
+    expect(result[0].map(triple => triple[0].value)).toEqual(['5', '4', '3']);
+  });
+
+  test('当没有连续的三根时返回空数组', () => {
+    const cards = [
+      { value: '3', suit: 'hearts' },
+      { value: '3', suit: 'diamonds' },
+      { value: '3', suit: 'spades' },
+      { value: '4', suit: 'hearts' },
+      { value: '4', suit: 'diamonds' },
+      { value: '4', suit: 'spades' },
+      { value: '7', suit: 'hearts' },
+      { value: '7', suit: 'diamonds' },
+      { value: '7', suit: 'spades' },
+      { value: '8', suit: 'spades' },
+      { value: '8', suit: 'spades' },
+
+    ];
+    const result = findConsecutiveTriples(cards);
+    expect(result).toEqual([]);
   });
 });

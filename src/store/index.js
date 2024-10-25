@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
+import { validateCardPattern, sortCards, getCardPatternType, convertCards,comparePlayerCards } from '../api/gameApi.js';
 import { HumanPlayer } from '../players/HumanPlayer';
 import { ProgramPlayer } from '../players/ProgramPlayer';
 // import { AIPlayer } from '../players/AIPlayer';
@@ -16,16 +16,7 @@ function createDeck() {
   return deck;
 }
 
-//给玩家的手牌排序
-function compareCards(a, b) {
-  const order = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
-  if (a.suit === 'Joker' && b.suit === 'Joker') {
-    return order.indexOf(a.value) - order.indexOf(b.value);
-  }
-  if (a.suit === 'Joker') return -1;
-  if (b.suit === 'Joker') return 1;
-  return order.indexOf(a.value) - order.indexOf(b.value);
-}
+
 
 //打乱牌
 function shuffleDeck(deck) {
@@ -136,7 +127,7 @@ export default createStore({
     },
     DEAL_CARDS(state, shuffledDeck) {
       state.players.forEach((player, index) => {
-        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(compareCards);
+        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(comparePlayerCards);
         player.selectedCards = [];
       });
       convertPlayerCardsToInitialHand(state);
@@ -219,7 +210,7 @@ export default createStore({
       state.winner = null;
     },
     SORT_PLAYER_CARDS(state, playerIndex) {
-      state.players[playerIndex].cards.sort(compareCards);
+      state.players[playerIndex].cards.sort(comparePlayerCards);
     },
     SET_TEST_MODE(state, isTestMode) {
       state.testMode = isTestMode;

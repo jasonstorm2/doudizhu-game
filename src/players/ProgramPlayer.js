@@ -47,9 +47,14 @@ export class ProgramPlayer extends Player {
     }
 
     playAsFirstPlayer() {
+        // 获取并打印剩余卡牌
+        const store = require('@/store').default;
+        const remainingCards = store.getters.getRemainingCards(this.id);
+        console.log('剩余卡牌:', remainingCards.map(card => `${card.suit}${card.value}`));
+        
         const combinations = this.identifyCombinations();
         const handStrength = this.evaluateHandStrength();
-        const remainingCards = this.estimateRemainingCards();
+        const estimatedCards = this.estimateRemainingCards();
 
         // 优先出不能形成顺子的小牌
         const singleCards = this.findDisconnectedSingles(combinations.singles);
@@ -65,7 +70,7 @@ export class ProgramPlayer extends Player {
             return this.playControlStrategy(combinations);
         }
 
-        return this.playBalancedStrategy(combinations, remainingCards);
+        return this.playBalancedStrategy(combinations, estimatedCards);
     }
 
     findDisconnectedSingles(singles) {
@@ -221,13 +226,6 @@ export class ProgramPlayer extends Player {
             selectedPlay = this.playStrategically(possiblePlays, gameState);
         }
 
-        // 如果选择的是对子，考虑拆对子以形成更好的牌型
-        if (selectedPlay && selectedPlay.length === 2 && selectedPlay[0].value === selectedPlay[1].value) {
-            const potentialStraight = this.canFormBetterHandAfterSplittingPair(selectedPlay);
-            if (potentialStraight) {
-                selectedPlay = [selectedPlay[0]];
-            }
-        }
 
         console.log('Selected play:', selectedPlay);
         return selectedPlay;
@@ -463,7 +461,6 @@ export class ProgramPlayer extends Player {
         const sortedCards = sortCards([...this.cards]);
         const cardOrder = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
         
-        // 特殊处理 KKAA 的情况
         if (length === 4) {
             const kingsAndAces = sortedCards.filter(card => card.value === 'K' || card.value === 'A');
             if (kingsAndAces.length === 4 && kingsAndAces[0].value === 'K' && kingsAndAces[2].value === 'A') {

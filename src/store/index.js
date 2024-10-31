@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, sortCards, getCardPatternType, convertCards,comparePlayerCards } from '../api/gameApi.js';
+import { validateCardPattern, sortCards, getCardPatternType, convertCards,comparePlayerCards,compareHandCards } from '../api/gameApi.js';
 import { HumanPlayer } from '../players/HumanPlayer';
 import { ProgramPlayer } from '../players/ProgramPlayer';
 // import { AIPlayer } from '../players/AIPlayer';
@@ -15,6 +15,8 @@ function createDeck() {
   deck.push({ suit: 'Joker', value: 'Big', selected: false });
   return deck;
 }
+
+
 
 
 
@@ -127,7 +129,7 @@ export default createStore({
     },
     DEAL_CARDS(state, shuffledDeck) {
       state.players.forEach((player, index) => {
-        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(comparePlayerCards);
+        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(compareHandCards);
         player.selectedCards = [];
       });
       convertPlayerCardsToInitialHand(state);
@@ -340,6 +342,34 @@ export default createStore({
     canPlay: (state) => (playerIndex) => {
       const playerCards = state.players[playerIndex].cards;
       return playerCards.length > 0;
+    },
+    getRemainingCards: (state) => (playerIndex) => {
+      // 创建完整牌组
+      const fullDeck = createDeck();
+      
+      // 获取已知的牌（自己的手牌 + 所有已出的牌）
+      const knownCards = new Set();
+      
+      // 添加玩家手牌
+      state.players[playerIndex].cards.forEach(card => {
+        knownCards.add(`${card.suit}-${card.value}`);
+      });
+      
+      // 添加历史出牌记录中的牌
+      state.gameInfo.historyInfo.history.forEach(playedCards => {
+        if (Array.isArray(playedCards)) {
+          playedCards.forEach(value => {
+            // 因为历史记录只存了值，我们需要找到对应的完整卡牌
+            const matchingCards = fullDeck.filter(card => card.value === value);
+            matchingCards.forEach(card => {
+              knownCards.add(`${card.suit}-${card.value}`);
+            });
+          });
+        }
+      });
+      
+      // 返回不在已知牌中的所有牌
+      return fullDeck.filter(card => !knownCards.has(`${card.suit}-${card.value}`));
     }
   }
 });

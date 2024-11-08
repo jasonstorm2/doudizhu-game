@@ -1,5 +1,5 @@
 import { Player } from './Player';
-import { isGreaterThanLastPlay, getCardPatternType, validateCardPattern, sortCards, isConsecutivePairs } from '../api/gameApi';
+import {identifyCombinations, isGreaterThanLastPlay, getCardPatternType, validateCardPattern, sortCards, isConsecutivePairs } from '../api/gameApi';
 import { gameManager } from '../managers/GameManager';
 
 export class ProgramPlayer extends Player {
@@ -52,7 +52,7 @@ export class ProgramPlayer extends Player {
         const remainingCards = store.getters.getRemainingCards(this.id);
         console.log('剩余卡牌:', remainingCards.map(card => `${card.suit}${card.value}`));
         
-        const combinations = this.identifyCombinations();
+        const combinations = identifyCombinations(this.cards);
         const handStrength = this.evaluateHandStrength();
         const estimatedCards = this.estimateRemainingCards();
 
@@ -283,59 +283,7 @@ export class ProgramPlayer extends Player {
         return this.findBomb(possiblePlays) || this.playConservatively(possiblePlays);
     }
 
-    identifyCombinations() {
-        const combinations = {
-            singles: [],
-            pairs: [],
-            triples: [],
-            tripleWithOne: [],
-            tripleWithTwo: [],
-            straights: [],
-            bombs: [],
-            consecutivePairs: []
-        };
 
-        const tripleSets = new Set();
-        for (let i = 0; i < this.cards.length - 2; i++) {
-            if (this.cards[i].value === this.cards[i + 1].value && this.cards[i].value === this.cards[i + 2].value) {
-                tripleSets.add(this.cards[i].value);
-                combinations.triples.push(this.cards.slice(i, i + 3));
-                i += 2;
-            }
-        }
-
-        for (let i = 0; i < this.cards.length; i++) {
-            if (i + 3 < this.cards.length &&
-                this.cards[i].value === this.cards[i + 1].value &&
-                this.cards[i].value === this.cards[i + 2].value &&
-                this.cards[i].value === this.cards[i + 3].value) {
-                combinations.bombs.push(this.cards.slice(i, i + 4));
-                i += 3;
-            } else if (!tripleSets.has(this.cards[i].value)) {
-                if (i + 1 < this.cards.length && this.cards[i].value === this.cards[i + 1].value) {
-                    combinations.pairs.push(this.cards.slice(i, i + 2));
-                    i += 1;
-                } else {
-                    combinations.singles.push(this.cards[i]);
-                }
-            }
-        }
-
-        combinations.triples.forEach(triple => {
-            const remainingCards = this.cards.filter(card => !triple.includes(card));
-            if (remainingCards.length >= 1) {
-                combinations.tripleWithOne.push([...triple, remainingCards[0]]);
-            }
-            if (remainingCards.length >= 2) {
-                combinations.tripleWithTwo.push([...triple, remainingCards[0], remainingCards[1]]);
-            }
-        });
-
-        combinations.straights = this.findStraights();
-        combinations.consecutivePairs = this.findConsecutivePairs();
-
-        return combinations;
-    }
 
     findStraights() {
         const straights = [];
@@ -414,7 +362,7 @@ export class ProgramPlayer extends Player {
 
     findPossiblePlays(lastPlayType, lastPlayedCards) {
         const possiblePlays = [];
-        const combinations = this.identifyCombinations();
+        const combinations = identifyCombinations(this.cards);
 
         switch(lastPlayType) {
             case 'single':
@@ -543,7 +491,7 @@ export class ProgramPlayer extends Player {
     }
 
     evaluateHandStrength() {
-        const combinations = this.identifyCombinations();
+        const combinations = identifyCombinations(this.cards);
         let score = 0;
         
         score += combinations.singles.length * 1;

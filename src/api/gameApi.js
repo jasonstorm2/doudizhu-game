@@ -107,6 +107,11 @@ export function validateCardPattern(cards, throwError = true) {
   return false;
 }
 
+/**
+ * 获取牌型
+ * @param {*} cards 
+ * @returns 
+ */
 export function getCardPatternType(cards) {
   cards = flattenArray(cards);
   const sortedCards = sortCards([...cards]);
@@ -299,8 +304,8 @@ export function isGreaterThanLastPlay(currentCards, lastPlayedCards) {
   }
 
   // 根据牌型进行比较
-  const currentPattern = getCardPattern(currentCards);
-  const lastPattern = getCardPattern(lastPlayedCards);
+  const currentPattern = getCardPatternType(currentCards);
+  const lastPattern = getCardPatternType(lastPlayedCards);
 
   if (currentPattern !== lastPattern) {
     return false; // 不同牌型不能比较
@@ -373,19 +378,6 @@ function comparePlane(plane1, plane2) {
   return cardOrder.indexOf(triples1[0]) > cardOrder.indexOf(triples2[0]);
 }
 
-function getCardPattern(cards) {
-  if (cards.length === 1) return 'single';
-  if (cards.length === 2 && cards[0].value === cards[1].value) return 'pair';
-  if (cards.length === 3 && cards[0].value === cards[1].value && cards[1].value === cards[2].value) return 'triple';
-  if (cards.length === 4 && isTriplePlusCards(cards)) return 'tripleWithOne';
-  if (cards.length === 5 && isTriplePlusCards(cards)) return 'tripleWithTwo';
-  if (isStraight(cards)) return 'straight';
-  if (isConsecutivePairs(cards)) return 'consecutivePairs';
-  if (isPlane(cards)) return 'plane';
-  if (isValidBomb(cards)) return 'bomb';
-  return 'unknown';
-}
-// 辅助函数
 
 function isValidBomb(cards) {
   if (cards.length === 4 && new Set(cards.map(c => c.value)).size === 1) return true;
@@ -506,7 +498,7 @@ function hasGreaterCards(playerCards, lastPlayedCards) {
     console.error('Invalid lastPlayedCards:', lastPlayedCards);
     return false;
   }
-  const lastCardType = getCardPattern(lastPlayedCards);
+  const lastCardType = getCardPatternType(lastPlayedCards);
   let res = false;
   switch (lastCardType) {
     case 'single':
@@ -1135,7 +1127,8 @@ export function analyzeAndSplitCards(cards) {
   console.log('Best method combination:', array.map(card => card.value).join(','));
 
   // 为三代配牌
-  const combinationWithAttachedCards = attachCardsToTriples(bestMethod.combination, remainingCards);
+  let remainingCardsArr =analyzeRemainingCards(remainingCards);
+  const combinationWithAttachedCards = attachCardsToTriples(bestMethod.combination, remainingCardsArr);
 
   // 处理剩余的牌
   const usedCards = new Set(combinationWithAttachedCards.flat().map(card => card));
@@ -1687,62 +1680,237 @@ export function findConsecutiveTriples(cards) {
  */
 function attachCardsToTriples(combination, remainingCards) {
   const newCombination = [];
-  const usedCards = new Set();
+  
+  // 分别处理 combination 和 remainingCards，取出对子和单根
+  const combinationSinglesAndPairs = extractSinglesAndPairsFromCombination(combination);
+  const remainingSinglesAndPairs = extractSinglesAndPairsFromCombination(remainingCards);
+  
+  // 合并所有可用的单牌和对子
+  let availableSingles = [...combinationSinglesAndPairs.singles, ...remainingSinglesAndPairs.singles];
+  let availablePairs = [...combinationSinglesAndPairs.pairs, ...remainingSinglesAndPairs.pairs];
 
-  // 找出所有的三代和连续三代
-  for (const pattern of combination) {
+  // 找出所有连续三根和普通三根
+  const consecutiveTriples = [];
+  const normalTriples = [];
+  const otherPatterns = [];
+  
+  combination.forEach(pattern => {
     const patternType = getCardPatternType(pattern);
-    if (patternType === 'triple' || patternType === 'consecutiveTriples') {
-      // 为每个三代寻找配牌
-      const attachableCards = findAttachableCards(remainingCards, pattern, usedCards);
-      if (attachableCards.length > 0) {
-        // 将三代和配牌组合在一起
-        newCombination.push([...pattern, ...attachableCards]);
-        // 记录已使用的牌
-        attachableCards.forEach(card => usedCards.add(card));
-      } else {
-        newCombination.push(pattern);
-      }
-    } else {
-      newCombination.push(pattern);
+    if (patternType === 'planeWithNone') {
+      consecutiveTriples.push(pattern);
+    } else if (patternType === 'triple') {
+      normalTriples.push(pattern);
+    } else if (!['single', 'pair'].includes(patternType)) {
+      otherPatterns.push(pattern);
     }
-  }
-
-  return newCombination;
-} 
-
-/**
- * 寻找可以配给三代的牌
- * @param {Array} remainingCards - 剩余的牌
- * @param {Array} triplePattern - 三代牌型
- * @param {Set} usedCards - 已使用的牌
- * @returns {Array} - 可以配的牌
- */
-function findAttachableCards(remainingCards, triplePattern, usedCards) {
-  // 过滤出未使用的小于10的牌
-  const availableCards = remainingCards.filter(card => {
-    const cardValue = parseInt(card.value) || 10;
-    return cardValue < 10 && !usedCards.has(card);
   });
 
-  if (availableCards.length === 0) return [];
+  // 处理连续三根
+  const processedConsecutiveTriples = attachCardsToConsecutiveTriples(
+    consecutiveTriples,
+    availablePairs,
+    availableSingles
+  );
 
-  // 尝试找对子
-  const pairs = findPairs(availableCards);
-  if (pairs.length > 0) {
-    // 如果有对子，优先使用对子
-    return pairs[0];
+  // 更新可用的单牌和对子
+  const remainingAttachments = getRemainingAttachments(
+    processedConsecutiveTriples.usedCards,
+    availableSingles,
+    availablePairs
+  );
+
+  // 处理普通三根
+  const processedNormalTriples = attachCardsToNormalTriples(
+    normalTriples,
+    remainingAttachments.pairs,
+    remainingAttachments.singles
+  );
+
+  // 将处理后的牌型添加到结果中
+  newCombination.push(...processedConsecutiveTriples.patterns);
+  newCombination.push(...processedNormalTriples.patterns);
+
+  // 添加未使用的单牌和对子
+  const finalUnusedCards = getRemainingCards(
+    [...processedConsecutiveTriples.usedCards, ...processedNormalTriples.usedCards],
+    [...availableSingles, ...availablePairs.flat()]
+  );
+  
+  // 将未使用的牌重新组合成单牌和对子
+  const finalPatterns = regroupRemainingCards(finalUnusedCards);
+  newCombination.push(...finalPatterns);
+
+  return newCombination;
+}
+
+// 处理 combination 结构
+function extractSinglesAndPairsFromCombination(combination) {
+  const singles = [];
+  const pairs = [];
+  
+  combination.forEach(pattern => {
+    const patternType = getCardPatternType(pattern);
+    if (patternType === 'single') {
+      singles.push(...pattern);
+    } else if (patternType === 'pair') {
+      pairs.push(pattern);
+    }
+  });
+
+  return { singles, pairs };
+}
+
+/**
+ * 给连续三根配牌 
+ * @param {*} consecutiveTriples 
+ * @param {*} pairs 
+ * @param {*} singles 
+ * @returns 
+ */
+function attachCardsToConsecutiveTriples(consecutiveTriples, pairs, singles) {
+  const patterns = [];
+  const usedCards = new Set();
+  
+  consecutiveTriples.forEach(triple => {
+    const tripleCount = triple.length; // 每组连续三根包含的三根数量
+    
+    // 尝试先用对子配牌
+    if (pairs.length >= tripleCount) {
+      const attachedPairs = pairs.slice(0, tripleCount);
+      patterns.push([...triple, ...attachedPairs]);
+      attachedPairs.flat().forEach(card => usedCards.add(card));
+      //删除使用的元素
+      pairs.splice(0, tripleCount);
+    }
+    // 如果对子不够，使用单牌
+    else if (singles.length >= tripleCount * 2) {
+      const attachedSingles = singles.slice(0, tripleCount * 2).map(single => [single]);
+      patterns.push([...triple, ...attachedSingles]);
+      attachedSingles.forEach(card => usedCards.add(card));
+      //删除使用的元素  
+      singles.splice(0, tripleCount * 2);
+    }
+    // 如果单牌也不够，只能作为普通三根
+    else {
+      patterns.push(triple);
+    }
+  });
+
+  return { patterns, usedCards };
+}
+
+function attachCardsToNormalTriples(normalTriples, pairs, singles) {
+  const patterns = [];
+  const usedCards = new Set();
+
+  normalTriples.forEach(triple => {
+    // 优先使用对子
+    if (pairs.length > 0) {
+      const pair = pairs[0];
+      patterns.push([...triple, ...pair]);
+      pair.forEach(card => usedCards.add(card));
+      pairs.shift();
+    }
+    // 其次使用单牌
+    else if (singles.length >= 2) {
+      const attachedSingles = singles.slice(0, 2);
+      patterns.push([...triple, ...attachedSingles]);
+      attachedSingles.forEach(card => usedCards.add(card));
+      singles.splice(0, 2);
+    }
+    // 如果没有足够的牌，保持原样
+    else {
+      patterns.push(triple);
+    }
+  });
+
+  return { patterns, usedCards };
+}
+
+function getRemainingAttachments(usedCards, singles, pairs) {
+  return {
+    singles: singles.filter(card => !usedCards.has(card)),
+    pairs: pairs.filter(pair => !pair.some(card => usedCards.has(card)))
+  };
+}
+
+function getRemainingCards(usedCards, allCards) {
+  return allCards.filter(card => !usedCards.has(card));
+}
+
+function regroupRemainingCards(cards) {
+  const patterns = [];
+  const sortedCards = sortCards([...cards]);
+  
+  // 先找对子
+  for (let i = 0; i < sortedCards.length - 1; i++) {
+    if (sortedCards[i].value === sortedCards[i + 1].value) {
+      patterns.push([sortedCards[i], sortedCards[i + 1]]);
+      i++;
+    } else {
+      patterns.push([sortedCards[i]]);
+    }
+  }
+  
+  // 处理最后一张牌（如果有的话）
+  if (sortedCards.length % 2 !== 0 && !patterns.flat().includes(sortedCards[sortedCards.length - 1])) {
+    patterns.push([sortedCards[sortedCards.length - 1]]);
+  }
+  
+  return patterns;
+}
+
+
+export function  identifyCombinations(cards) {
+  const combinations = {
+      singles: [],
+      pairs: [],
+      triples: [],
+      tripleWithOne: [],
+      tripleWithTwo: [],
+      straights: [],
+      bombs: [],
+      consecutivePairs: []
+  };
+
+  const tripleSets = new Set();
+  for (let i = 0; i < cards.length - 2; i++) {
+      if (cards[i].value === cards[i + 1].value && cards[i].value === cards[i + 2].value) {
+          tripleSets.add(cards[i].value);
+          combinations.triples.push(cards.slice(i, i + 3));
+          i += 2;
+      }
   }
 
-  // 如果没有对子，使用两张单牌
-  if (availableCards.length >= 2) {
-    return availableCards.slice(0, 2);
+  for (let i = 0; i < cards.length; i++) {
+      if (i + 3 < cards.length &&
+          cards[i].value === cards[i + 1].value &&
+          cards[i].value === cards[i + 2].value &&
+          cards[i].value === cards[i + 3].value) {
+          combinations.bombs.push(cards.slice(i, i + 4));
+          i += 3;
+      } else if (!tripleSets.has(cards[i].value)) {
+          if (i + 1 < cards.length && cards[i].value === cards[i + 1].value) {
+              combinations.pairs.push(cards.slice(i, i + 2));
+              i += 1;
+          } else {
+              combinations.singles.push(cards[i]);
+          }
+      }
   }
 
-  // 如果只有一张牌，也可以使用
-  if (availableCards.length === 1) {
-    return [availableCards[0]];
-  }
+  combinations.triples.forEach(triple => {
+      const remainingCards = cards.filter(card => !triple.includes(card));
+      if (remainingCards.length >= 1) {
+          combinations.tripleWithOne.push([...triple, remainingCards[0]]);
+      }
+      if (remainingCards.length >= 2) {
+          combinations.tripleWithTwo.push([...triple, remainingCards[0], remainingCards[1]]);
+      }
+  });
 
-  return [];
+  combinations.straights = findStraights(cards);
+  combinations.consecutivePairs = findConsecutivePairs(cards);   
+
+  return combinations;
 }

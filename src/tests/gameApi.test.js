@@ -1,5 +1,5 @@
 import {
-  analyzeAndSplitCards,
+  findLongestStraight,
 } from '../api/gameApi';
 import { describe, test } from '@jest/globals';
 import { demonstrateStrategy } from './CardStrategy';
@@ -46,16 +46,38 @@ import { demonstrateStrategy } from './CardStrategy';
 // });
 
 
-describe('demonstrateStrategy', () => {
-  test('游戏', () => {
+// describe('demonstrateStrategy', () => {
+//   test('游戏', () => {
 
-    // 测试游戏
-    const player1Cards = [14, 10, 3];  // 你的牌
-    const player2Cards = [11, 5];      // 对手1的牌
-    const player3Cards = [13, 8, 6];   // 对手2的牌
+//     // 测试游戏
+//     const player1Cards = [14, 10, 3];  // 你的牌
+//     const player2Cards = [11, 5];      // 对手1的牌
+//     const player3Cards = [13, 8, 6];   // 对手2的牌
 
-    demonstrateStrategy(player1Cards, player2Cards, player3Cards);
+//     demonstrateStrategy(player1Cards, player2Cards, player3Cards);
+//   });
+
+
+// });
+
+
+describe('findLongestStraight', () => {
+  test('findLongestStraight', () => {
+    const consecutivePairs = [
+      { value: 'Big', suit: 'hearts' },
+      { value: 'Small', suit: 'diamonds' },
+      { value: 'K', suit: 'spades' },
+      { value: 'Q', suit: 'clubs' },
+      { value: 'J', suit: 'clubs' },
+      { value: '10', suit: 'clubs' },
+      { value: '5', suit: 'clubs' },
+
+    ];
+    findLongestStraight(consecutivePairs);
   });
 
 
 });
+
+
+

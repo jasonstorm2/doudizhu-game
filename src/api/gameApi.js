@@ -1107,81 +1107,125 @@ export function calculateSingleCardScore(card) {
  * @returns {Array} - 按分值从高到低排列的牌型数组
  */
 export function analyzeAndSplitCards(cards) {
-  cards = cards.sort(comparePlayerCards);
-  const affectedCards = getAffectedCards(cards);
-  const remainingCards = cards.filter(card => !affectedCards.includes(card));
+    cards = cards.sort(comparePlayerCards);
+    const affectedCards = getAffectedCards(cards);
+    
+    // 如果没有受顺子影响的牌，直接分析所有牌
+    if (!affectedCards || affectedCards.length === 0) {
+        const result = analyzeMethod3(cards); // 使用方法3分析所有牌
+        return result.combination;
+    }else{
+      const remainingCards = cards.filter(card => !affectedCards.includes(card));
 
-  const method1Result = analyzeMethod1(affectedCards);
-  const method2Result = analyzeMethod2(affectedCards);
-  const method3Result = analyzeMethod3(affectedCards);
-
-  console.log('Method 1 score:', method1Result.score);
-  console.log('Method 2 score:', method2Result.score);
-  console.log('Method 3 score:', method3Result.score);
-
-  const bestMethod = [method1Result, method2Result, method3Result]
-    .reduce((best, current) => current.score > best.score ? current : best);
-
-  console.log('Best method score:', bestMethod.score);
-  let array = flattenArray(bestMethod.combination);
-  console.log('Best method combination:', array.map(card => card.value).join(','));
-
-  // 为三代配牌
-  let remainingCardsArr =analyzeRemainingCards(remainingCards);
-  const combinationWithAttachedCards = attachCardsToTriples(bestMethod.combination, remainingCardsArr);
-
-  // 处理剩余的牌
-  const usedCards = new Set(combinationWithAttachedCards.flat().map(card => card));
-  const finalRemainingCards = remainingCards.filter(card => !usedCards.has(card));
-
-  let finalResult = [...combinationWithAttachedCards, ...analyzeRemainingCards(finalRemainingCards)];
-  finalResult = finalResult.sort((a, b) => calculatePatternScore(b) - calculatePatternScore(a));
-
-  // 添加新的转换步骤
-  const formattedResult = {};
-  finalResult.forEach(pattern => {
-    const patternType = getCardPatternType(pattern);
-    if (!formattedResult[patternType]) {
-      formattedResult[patternType] = [];
+      const method1Result = analyzeMethod1(affectedCards);
+      const method2Result = analyzeMethod2(affectedCards);
+      const method3Result = analyzeMethod3(affectedCards);
+  
+      console.log('Method 1 score:', method1Result.score);
+      console.log('Method 2 score:', method2Result.score);
+      console.log('Method 3 score:', method3Result.score);
+  
+      const bestMethod = [method1Result, method2Result, method3Result]
+          .reduce((best, current) => current.score > best.score ? current : best);
+  
+      console.log('Best method score:', bestMethod.score);
+      let array = flattenArray(bestMethod.combination);
+      console.log('Best method combination:', array.map(card => card.value).join(','));
+  
+      // 为三代配牌
+      let remainingCardsArr = analyzeRemainingCards(remainingCards);
+      const combinationWithAttachedCards = attachCardsToTriples(bestMethod.combination, remainingCardsArr);
+  
+      // 处理剩余的牌
+      const usedCards = new Set(combinationWithAttachedCards.flat().map(card => card));
+      const finalRemainingCards = remainingCards.filter(card => !usedCards.has(card));
+  
+      let finalResult = [...combinationWithAttachedCards, ...analyzeRemainingCards(finalRemainingCards)];
+      finalResult = finalResult.sort((a, b) => calculatePatternScore(b) - calculatePatternScore(a));
+  
+      // 添加新的转换步骤
+      const formattedResult = {};
+      finalResult.forEach(pattern => {
+          const patternType = getCardPatternType(pattern);
+          if (!formattedResult[patternType]) {
+              formattedResult[patternType] = [];
+          }
+          formattedResult[patternType].push(pattern.map(card => card.value));
+      });
+  
+      return finalResult;
     }
-    formattedResult[patternType].push(pattern.map(card => card.value));
-  });
-
-  return finalResult;
 }
 
 function getAffectedCards(cards) {
-  const longestStraight = findLongestStraight(cards);
-  return cards.filter(card =>
-    cardScores[card.value] >= cardScores[longestStraight[longestStraight.length - 1].value] &&
-    cardScores[card.value] <= cardScores[longestStraight[0].value]
-  );
+    const longestStraight = findLongestStraight(cards);
+    
+    // 如果没有找到有效顺子，返回空数组
+    if (!longestStraight || longestStraight.length === 0) {
+        return [];
+    }
+    
+    // 找到顺子后，返回受影响的牌
+    return cards.filter(card =>
+        cardScores[card.value] >= cardScores[longestStraight[longestStraight.length - 1].value] &&
+        cardScores[card.value] <= cardScores[longestStraight[0].value]
+    );
 }
 
-function findLongestStraight(cards) {
-  const uniqueValues = [...new Set(cards.map(card => card.value))];
-  let longestStraight = [];
-  let currentStraight = [uniqueValues[0]];
+export function findLongestStraight(cards) {
+    const cardOrder = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const uniqueValues = [...new Set(cards.map(card => card.value))];
+    
+    // 过滤掉2和大小王，因为它们不能参与顺子
+    const validValues = uniqueValues.filter(value => 
+        !['2', 'Big', 'Small'].includes(value)
+    );
 
-  for (let i = 1; i < uniqueValues.length; i++) {
-    if (cardScores[uniqueValues[i]] === cardScores[uniqueValues[i - 1]] - 1) {
-      currentStraight.push(uniqueValues[i]);
-    } else {
-      if (currentStraight.length > longestStraight.length) {
-        longestStraight = [...currentStraight];
-      }
-      currentStraight = [uniqueValues[i]];
+    // 如果有效牌小于5张，直接返回空数组
+    if (validValues.length < 5) {
+        return [];
     }
-  }
 
-  if (currentStraight.length > longestStraight.length) {
-    longestStraight = currentStraight;
-  }
+    let longestStraight = [];
+    let currentStraight = [];
 
-  // 将值转换回原始的卡牌对象
-  return longestStraight.map(value =>
-    cards.find(card => card.value === value)
-  );
+    // 按照牌的大小顺序排序
+    validValues.sort((a, b) => cardOrder.indexOf(a) - cardOrder.indexOf(b));
+
+    // 寻找最长的连续序列
+    for (let i = 0; i < validValues.length; i++) {
+        const currentIndex = cardOrder.indexOf(validValues[i]);
+        
+        if (currentStraight.length === 0) {
+            currentStraight.push(validValues[i]);
+        } else {
+            const lastIndex = cardOrder.indexOf(currentStraight[currentStraight.length - 1]);
+            if (currentIndex === lastIndex + 1) {
+                currentStraight.push(validValues[i]);
+            } else {
+                // 如果当前顺子长度大于等于5，且比之前找到的最长顺子更长，则更新最长顺子
+                if (currentStraight.length >= 5 && currentStraight.length > longestStraight.length) {
+                    longestStraight = [...currentStraight];
+                }
+                currentStraight = [validValues[i]];
+            }
+        }
+    }
+
+    // 检查最后一个顺子
+    if (currentStraight.length >= 5 && currentStraight.length > longestStraight.length) {
+        longestStraight = [...currentStraight];
+    }
+
+    // 如果没有找到长度大于等于5的顺子，返回空数组
+    if (longestStraight.length < 5) {
+        return [];
+    }
+
+    // 将值转换回原始的卡牌对象
+    return longestStraight.map(value =>
+        cards.find(card => card.value === value)
+    );
 }
 
 function analyzeRemainingCards(cards) {
@@ -1338,6 +1382,55 @@ function flattenArray(arr) {
   return arr.reduce((flat, toFlatten) => {
     return flat.concat(Array.isArray(toFlatten) ? flattenArray(toFlatten) : toFlatten);
   }, []);
+}
+
+/**
+ * 先找连续的三根再找三根，在找对子
+ * @param {*} cards 
+ * @returns 
+ */
+function analyzeMethodCommon(cards) {
+  cards = cards.sort(comparePlayerCards);
+
+  let combination = [];
+
+
+  const consecutiveTriples = findConsecutiveTriples(cards);
+  let triples = [];
+  let remainingCards3 = cards;
+
+  if (consecutiveTriples.length > 0) {
+    // 使用 flattenArray 来展平 consecutiveTriples
+    const flattenedTriples = flattenArray(consecutiveTriples);
+    remainingCards3 = cards.filter(card => !flattenedTriples.includes(card));
+    combination = [...consecutiveTriples];
+  } else {
+    triples = findAllTriples(cards);
+    const flattenedTriples = flattenArray(triples);
+    combination = [...triples];
+    remainingCards3 = cards.filter(card => !flattenedTriples.includes(card));
+  }
+
+
+  const consecutivePairs = findConsecutivePairs(remainingCards3);
+  if (consecutivePairs.length > 0) {
+    combination.push(...consecutivePairs);
+
+    const flattenedTriples = flattenArray(consecutivePairs);
+    remainingCards3 = remainingCards3.filter(card => !flattenedTriples.includes(card));
+  }
+  combination.push(...analyzeRemainingCards(remainingCards3));
+
+  const score = calculateTotalScore(combination);
+
+  console.log("方法1");
+  console.log("最佳组合：", combination.map(cards => cards.map(card => card.value).join(',')).join(' | '));
+  console.log("最高分数：", score);
+
+  return {
+    score: score,
+    combination: combination
+  };
 }
 
 /**

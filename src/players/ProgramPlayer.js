@@ -52,25 +52,136 @@ export class ProgramPlayer extends Player {
         const remainingCards = store.getters.getRemainingCards(this.id);
         console.log('剩余卡牌:', remainingCards.map(card => `${card.suit}${card.value}`));
         
-        const combinations = identifyCombinations(this.cards);
-        const handStrength = this.evaluateHandStrength();
-        const estimatedCards = this.estimateRemainingCards();
-
-        // 优先出不能形成顺子的小牌
-        const singleCards = this.findDisconnectedSingles(combinations.singles);
-        if (singleCards.length > 0) {
-            return [singleCards[0]];
+        // 分析手牌，获取最优组合
+        const { analyzeAndSplitCards } = require('../api/gameApi');
+        const bestCombinations = analyzeAndSplitCards(this.cards);
+        
+        // 计算每种牌型的概率和期望值
+        const probabilityAnalysis = this.analyzeProbabilities(bestCombinations, remainingCards);
+        
+        // 根据概率分析选择最佳出牌
+        const bestPlay = this.selectBestPlay(probabilityAnalysis);
+        
+        if (!bestPlay || bestPlay.length === 0) {
+            return [this.findSmallestCard()];
         }
+        
+        return bestPlay;
+    }
 
-        if (handStrength > 25 || this.cards.length <= 5) {
-            return this.playAggressiveStrategy(combinations);
+    analyzeProbabilities(combinations, remainingCards) {
+        const analysis = [];
+        
+        combinations.forEach(pattern => {
+            const patternType = getCardPatternType(pattern);
+            const patternScore = this.calculatePatternScore(pattern);
+            
+            // 计算对手可能持有的更大牌的概率
+            const probability = this.calculateCounterProbability(pattern, remainingCards);
+            
+            // 计算期望值 = 分数 * (1 - 被大牌打败的概率)
+            const expectedValue = patternScore * (1 - probability);
+            
+            analysis.push({
+                pattern,
+                patternType,
+                patternScore,
+                counterProbability: probability,
+                expectedValue
+            });
+        });
+        
+        return analysis;
+    }
+
+    calculateCounterProbability(pattern, remainingCards) {
+        const patternType = getCardPatternType(pattern);
+        const patternValue = this.getPatternValue(pattern);
+        
+        // 计算剩余牌中可以打过这个牌型的组合数量
+        const counterPatterns = this.findCounterPatterns(patternType, patternValue, remainingCards);
+        
+        // 根据对手手牌数量和剩余牌数量计算概率
+        const totalPossibilities = this.calculateCombinations(remainingCards.length, pattern.length);
+        const counterPossibilities = counterPatterns.length;
+        
+        return counterPossibilities / totalPossibilities;
+    }
+
+    selectBestPlay(probabilityAnalysis) {
+        // 根据游戏阶段调整策略
+        const gamePhaseWeight = this.gamePhase === 'early' ? 0.7 : 
+                               this.gamePhase === 'mid' ? 0.5 : 0.3;
+        
+        // 计算每种组合的综合得分
+        const scoredPlays = probabilityAnalysis.map(analysis => ({
+            ...analysis,
+            finalScore: analysis.expectedValue * gamePhaseWeight + 
+                       (1 - analysis.counterProbability) * (1 - gamePhaseWeight)
+        }));
+        
+        // 选择得分最高的组合
+        const bestPlay = scoredPlays.reduce((best, current) => {
+            return current.finalScore > best.finalScore ? current : best;
+        }, scoredPlays[0]);
+        
+        return bestPlay.pattern;
+    }
+
+    calculateCombinations(n, r) {
+        if (r > n) return 0;
+        if (r === 0) return 1;
+        
+        let result = 1;
+        for (let i = 1; i <= r; i++) {
+            result *= (n - i + 1) / i;
         }
+        return Math.floor(result);
+    }
 
-        if (handStrength < 15) {
-            return this.playControlStrategy(combinations);
+    findCounterPatterns(patternType, patternValue, remainingCards) {
+        // 根据牌型找出所有可能打过当前牌的组合
+        const counterPatterns = [];
+        
+        switch (patternType) {
+            case 'single':
+                counterPatterns.push(...this.findBiggerSingles(patternValue, remainingCards));
+                break;
+            case 'pair':
+                counterPatterns.push(...this.findBiggerPairs(patternValue, remainingCards));
+                break;
+            case 'straight':
+                counterPatterns.push(...this.findBiggerStraights(patternValue, remainingCards));
+                break;
+            // ... 其他牌型的处理
         }
+        
+        // 炸弹总是可以打过非炸弹牌型
+        if (patternType !== 'bomb' && patternType !== 'rocket') {
+            counterPatterns.push(...this.findBombs(remainingCards));
+        }
+        
+        return counterPatterns;
+    }
 
-        return this.playBalancedStrategy(combinations, estimatedCards);
+    getPatternValue(pattern) {
+        // 获取牌型的基础值
+        const patternType = getCardPatternType(pattern);
+        switch (patternType) {
+            case 'single':
+            case 'pair':
+            case 'triple':
+                return pattern[0].value;
+            case 'straight':
+            case 'consecutivePairs':
+                return pattern[0].value; // 最大的那张牌的值
+            case 'bomb':
+                return pattern[0].value;
+            case 'rocket':
+                return Infinity;
+            default:
+                return pattern[0].value;
+        }
     }
 
     findDisconnectedSingles(singles) {
@@ -243,25 +354,39 @@ export class ProgramPlayer extends Player {
         let longestStraight = [];
         let currentStraight = [sortedCards[0]];
 
-        for (let i = 1; i < sortedCards.length; i++) {
-            const prevIndex = values.indexOf(sortedCards[i - 1].value);
-            const currIndex = values.indexOf(sortedCards[i].value);
+        // 排除2和大小王
+        const validCards = sortedCards.filter(card => !['2', 'Big', 'Small'].includes(card.value));
+        if (validCards.length < 5) {
+            return []; // 如果有效牌小于5张，直接返回空数组
+        }
 
-            if (currIndex - prevIndex === 1 || currIndex - prevIndex === 0) {
-                currentStraight.push(sortedCards[i]);
+        for (let i = 1; i < validCards.length; i++) {
+            const prevIndex = values.indexOf(validCards[i - 1].value);
+            const currIndex = values.indexOf(validCards[i].value);
+
+            if (currIndex - prevIndex === 1) {
+                currentStraight.push(validCards[i]);
+            } else if (currIndex - prevIndex === 0) {
+                // 跳过重复的牌
+                continue;
             } else {
-                if (currentStraight.length > longestStraight.length) {
-                    longestStraight = [...currentStraight];
+                if (currentStraight.length >= 5) {
+                    // 只有当前顺子长度大于等于5时才更新最长顺子
+                    if (currentStraight.length > longestStraight.length) {
+                        longestStraight = [...currentStraight];
+                    }
                 }
-                currentStraight = [sortedCards[i]];
+                currentStraight = [validCards[i]];
             }
         }
 
-        if (currentStraight.length > longestStraight.length) {
-            longestStraight = currentStraight;
+        // 检查最后一个顺子
+        if (currentStraight.length >= 5 && currentStraight.length > longestStraight.length) {
+            longestStraight = [...currentStraight];
         }
 
-        return longestStraight;
+        // 如果最长顺子小于5，返回空数组
+        return longestStraight.length >= 5 ? longestStraight : [];
     }
 
     mustPlay(lastPlayedCards) {

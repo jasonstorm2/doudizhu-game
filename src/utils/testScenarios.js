@@ -28,6 +28,8 @@ export function useTestScenarios() {
 
     ];
     const player1Cards = [
+      { suit: '♠', value: 'Big', selected: false },
+      { suit: '♠', value: 'Small', selected: false },
       { suit: '♠', value: '10', selected: false },
       { suit: '♥', value: '10', selected: false },
       { suit: '♦', value: '10', selected: false },
@@ -35,8 +37,7 @@ export function useTestScenarios() {
       { suit: '♥', value: '8', selected: false },
     ];
     const player2Cards = [
-      { suit: '♠', value: 'Big', selected: false },
-      { suit: '♠', value: 'Small', selected: false },
+
       { suit: '♣', value: '10', selected: false },
       { suit: '♦', value: '4', selected: false },
       { suit: '♠', value: '4', selected: false },

@@ -33,6 +33,7 @@ export function useTestScenarios() {
       { suit: '♠', value: '10', selected: false },
       { suit: '♥', value: '10', selected: false },
       { suit: '♦', value: '10', selected: false },
+      { suit: '♦', value: '10', selected: false },
       { suit: '♠', value: '8', selected: false },
       { suit: '♥', value: '8', selected: false },
     ];

@@ -1384,54 +1384,6 @@ function flattenArray(arr) {
   }, []);
 }
 
-/**
- * 先找连续的三根再找三根，在找对子
- * @param {*} cards 
- * @returns 
- */
-function analyzeMethodCommon(cards) {
-  cards = cards.sort(comparePlayerCards);
-
-  let combination = [];
-
-
-  const consecutiveTriples = findConsecutiveTriples(cards);
-  let triples = [];
-  let remainingCards3 = cards;
-
-  if (consecutiveTriples.length > 0) {
-    // 使用 flattenArray 来展平 consecutiveTriples
-    const flattenedTriples = flattenArray(consecutiveTriples);
-    remainingCards3 = cards.filter(card => !flattenedTriples.includes(card));
-    combination = [...consecutiveTriples];
-  } else {
-    triples = findAllTriples(cards);
-    const flattenedTriples = flattenArray(triples);
-    combination = [...triples];
-    remainingCards3 = cards.filter(card => !flattenedTriples.includes(card));
-  }
-
-
-  const consecutivePairs = findConsecutivePairs(remainingCards3);
-  if (consecutivePairs.length > 0) {
-    combination.push(...consecutivePairs);
-
-    const flattenedTriples = flattenArray(consecutivePairs);
-    remainingCards3 = remainingCards3.filter(card => !flattenedTriples.includes(card));
-  }
-  combination.push(...analyzeRemainingCards(remainingCards3));
-
-  const score = calculateTotalScore(combination);
-
-  console.log("方法1");
-  console.log("最佳组合：", combination.map(cards => cards.map(card => card.value).join(',')).join(' | '));
-  console.log("最高分数：", score);
-
-  return {
-    score: score,
-    combination: combination
-  };
-}
 
 /**
  * 先找连续的三根再找三根，在找对子

@@ -2,6 +2,174 @@ import { Player } from './Player';
 import {identifyCombinations, isGreaterThanLastPlay, getCardPatternType, validateCardPattern, sortCards, isConsecutivePairs } from '../api/gameApi';
 import { gameManager } from '../managers/GameManager';
 
+class PokerHandAnalyzer {
+    constructor(cards) {
+        this.cards = cards;
+        this.cardCount = this.countCards();
+        this.valueMap = {
+            'Big': 17, 'Small': 16, '2': 15,
+            'A': 14, 'K': 13, 'Q': 12, 'J': 11,
+            '10': 10, '9': 9, '8': 8, '7': 7,
+            '6': 6, '5': 5, '4': 4, '3': 3
+        };
+    }
+
+    countCards() {
+        return this.cards.reduce((acc, card) => {
+            const value = card.value;
+            acc[value] = (acc[value] || 0) + 1;
+            return acc;
+        }, {});
+    }
+
+    findStraights() {
+        const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const validCards = this.cards.filter(card => !['2', 'Big', 'Small'].includes(card.value))
+            .sort((a, b) => values.indexOf(a.value) - values.indexOf(b.value));
+
+        const straights = [];
+        for (let len = 5; len <= validCards.length; len++) {
+            for (let i = 0; i <= validCards.length - len; i++) {
+                const potential = validCards.slice(i, i + len);
+                if (this.isValidStraight(potential)) {
+                    straights.push(potential);
+                }
+            }
+        }
+        return straights;
+    }
+
+    isValidStraight(cards) {
+        const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        for (let i = 1; i < cards.length; i++) {
+            if (values.indexOf(cards[i].value) !== values.indexOf(cards[i - 1].value) + 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    findTriples() {
+        const triples = [];
+        Object.entries(this.cardCount).forEach(([value, count]) => {
+            if (count >= 3) {
+                const cards = this.cards.filter(card => card.value === value).slice(0, 3);
+                triples.push({
+                    type: 'triple',
+                    cards: cards,
+                    value: this.valueMap[value]
+                });
+            }
+        });
+        return triples;
+    }
+
+    findBombs() {
+        const bombs = [];
+        Object.entries(this.cardCount).forEach(([value, count]) => {
+            if (count === 4) {
+                const cards = this.cards.filter(card => card.value === value);
+                bombs.push({
+                    type: 'bomb',
+                    cards: cards,
+                    value: this.valueMap[value]
+                });
+            }
+        });
+
+        // 检查王炸
+        if (this.cardCount['Big'] && this.cardCount['Small']) {
+            const cards = this.cards.filter(card => ['Big', 'Small'].includes(card.value));
+            bombs.push({
+                type: 'rocket',
+                cards: cards,
+                value: 999
+            });
+        }
+        return bombs;
+    }
+
+    findPossibleCombinations() {
+        let combinations = [];
+        
+        // 找出所有可能的组合
+        const triples = this.findTriples();
+        const straights = this.findStraights();
+        const bombs = this.findBombs();
+
+        // 评估三带组合
+        triples.forEach(triple => {
+            combinations.push({
+                type: 'triple',
+                pattern: triple.cards,
+                score: this.evaluateTriple(triple),
+                description: `三张${triple.cards[0].value}`
+            });
+        });
+
+        // 评估顺子组合
+        straights.forEach(straight => {
+            combinations.push({
+                type: 'straight',
+                pattern: straight,
+                score: this.evaluateStraight(straight),
+                description: `顺子${straight.map(c => c.value).join(',')}`
+            });
+        });
+
+        // 评估炸弹
+        bombs.forEach(bomb => {
+            combinations.push({
+                type: bomb.type,
+                pattern: bomb.cards,
+                score: this.evaluateBomb(bomb),
+                description: `${bomb.type === 'rocket' ? '王炸' : '炸弹'}${bomb.cards[0].value}`
+            });
+        });
+
+        return combinations;
+    }
+
+    evaluateTriple(triple) {
+        return 60 + this.valueMap[triple.cards[0].value] * 2;
+    }
+
+    evaluateStraight(straight) {
+        return 80 + straight.length * 10 + this.valueMap[straight[0].value] * 2;
+    }
+
+    evaluateBomb(bomb) {
+        return bomb.type === 'rocket' ? 200 : 150 + this.valueMap[bomb.cards[0].value] * 3;
+    }
+
+    findBestPlay() {
+        const combinations = this.findPossibleCombinations();
+        if (combinations.length === 0) {
+            // 如果没有找到组合，返回最小的单牌
+            const smallestCard = this.findSmallestCard();
+            return {
+                type: 'single',
+                pattern: [smallestCard],
+                score: this.valueMap[smallestCard.value],
+                description: `单牌${smallestCard.value}`
+            };
+        }
+
+        return combinations.reduce((best, current) => 
+            current.score > best.score ? current : best
+        );
+    }
+
+    findSmallestCard() {
+        return this.cards.reduce((smallest, current) => {
+            if (!smallest || this.valueMap[current.value] < this.valueMap[smallest.value]) {
+                return current;
+            }
+            return smallest;
+        });
+    }
+}
+
 export class ProgramPlayer extends Player {
     constructor(id) {
         super(id, 'PROGRAM');
@@ -47,26 +215,10 @@ export class ProgramPlayer extends Player {
     }
 
     playAsFirstPlayer() {
-        // 获取并打印剩余卡牌
-        const store = require('@/store').default;
-        const remainingCards = store.getters.getRemainingCards(this.id);
-        console.log('剩余卡牌:', remainingCards.map(card => `${card.suit}${card.value}`));
-        
-        // 分析手牌，获取最优组合
-        const { analyzeAndSplitCards } = require('../api/gameApi');
-        const bestCombinations = analyzeAndSplitCards(this.cards);
-        
-        // 计算每种牌型的概率和期望值
-        const probabilityAnalysis = this.analyzeProbabilities(bestCombinations, remainingCards);
-        
-        // 根据概率分析选择最佳出牌
-        const bestPlay = this.selectBestPlay(probabilityAnalysis);
-        
-        if (!bestPlay || bestPlay.length === 0) {
-            return [this.findSmallestCard()];
-        }
-        
-        return bestPlay;
+        const analyzer = new PokerHandAnalyzer(this.cards);
+        const bestPlay = analyzer.findBestPlay();
+        console.log('Best play found:', bestPlay.description);
+        return bestPlay.pattern;
     }
 
     analyzeProbabilities(combinations, remainingCards) {

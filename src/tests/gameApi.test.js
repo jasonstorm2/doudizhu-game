@@ -2,8 +2,7 @@ import {
   findLongestStraight,
 } from '../api/gameApi';
 import { describe, test } from '@jest/globals';
-import { demonstrateStrategy } from './CardStrategy';
-
+import { testPokerHand } from './PokerHand';
 
 
 
@@ -61,19 +60,10 @@ import { demonstrateStrategy } from './CardStrategy';
 // });
 
 
-describe('findLongestStraight', () => {
-  test('findLongestStraight', () => {
-    const consecutivePairs = [
-      { value: 'Big', suit: 'hearts' },
-      { value: 'Small', suit: 'diamonds' },
-      { value: 'K', suit: 'spades' },
-      { value: 'Q', suit: 'clubs' },
-      { value: 'J', suit: 'clubs' },
-      { value: '10', suit: 'clubs' },
-      { value: '5', suit: 'clubs' },
+describe('testPokerHand', () => {
+  test('testPokerHand', () => {
 
-    ];
-    findLongestStraight(consecutivePairs);
+    testPokerHand();
   });
 
 

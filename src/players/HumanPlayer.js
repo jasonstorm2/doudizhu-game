@@ -1,0 +1,27 @@
+import { Player } from './Player';
+import { validateCardPattern, isGreaterThanLastPlay } from '../api/gameApi';
+import { EventBus } from '../eventBus';
+
+export class HumanPlayer extends Player {
+  constructor(id) {
+    super(id, 'HUMAN');
+  }
+
+  playCards(lastPlayedCards) {
+    try {
+      if (validateCardPattern(this.selectedCards)) {
+        if (!lastPlayedCards || isGreaterThanLastPlay(this.selectedCards, lastPlayedCards)) {
+          return this.selectedCards;
+        } else {
+          EventBus.emit('show-alert', '出的牌必须大于上家的牌！');
+        }
+      } else {
+        EventBus.emit('show-alert', '无效的牌型啦！');
+      }
+    } catch (error) {
+      EventBus.emit('show-alert', error.message);
+    }
+
+    return null;
+  }
+}

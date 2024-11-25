@@ -1,8 +1,9 @@
 import { createStore } from 'vuex';
 import { EventBus } from '../eventBus';
-import { validateCardPattern, isGreaterThanLastPlay, sortCards, getCardPatternType, convertCards } from '../api/gameApi.js';
-
-
+import { validateCardPattern, sortCards, getCardPatternType, convertCards,comparePlayerCards,compareHandCards } from '../api/gameApi.js';
+import { HumanPlayer } from '../players/HumanPlayer';
+import { ProgramPlayer } from '../players/ProgramPlayer';
+// import { AIPlayer } from '../players/AIPlayer';
 
 // 辅助函数
 function createDeck() {
@@ -15,16 +16,9 @@ function createDeck() {
   return deck;
 }
 
-//给玩家的手牌排序
-function compareCards(a, b) {
-  const order = ['Big', 'Small', '2', 'A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3'];
-  if (a.suit === 'Joker' && b.suit === 'Joker') {
-    return order.indexOf(a.value) - order.indexOf(b.value);
-  }
-  if (a.suit === 'Joker') return -1;
-  if (b.suit === 'Joker') return 1;
-  return order.indexOf(a.value) - order.indexOf(b.value);
-}
+
+
+
 
 //打乱牌
 function shuffleDeck(deck) {
@@ -56,7 +50,7 @@ const gameInfo = {
   "game": "跑得快",
   "players": "3或更多",
   "deck": "54张扑克牌（包括大小王）",
-  "winning_condition": "先出完牌的玩家获胜。",
+  "winning_condition": "先出牌的玩家获胜。",
   "playing_rules": [
     {
       "rule_no": 1,
@@ -76,7 +70,7 @@ const gameInfo = {
     },
     {
       "rule_no": 5,
-      "description": "如果玩家非首发，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌。"
+      "description": "如果玩家非首，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌。"
     },
     {
       "rule_no": 6,
@@ -108,94 +102,13 @@ const gameInfo = {
   },
 }
 
-// const gameInfo2 = {
-//   gameRules: {
-//     basicSetup: {
-//       playerCount: 3,
-//       cardsPerPlayer: 18,
-//       players: ['你', 'a', 'b']
-//     },
-//     // gameFlow: [
-//     //   '按顺序出牌，直到一名玩家出完所有牌',
-//     // ],
-//     playRules: [
-//       '大小王表示：Small表示单张的小王，Big表示单张的大王',
-//       '获胜条件：先出完牌，谁获胜',
-//       '出牌规则1：首家出什么类型牌，其他玩家必须跟同类型的牌，除非玩家出炸弹',
-//       '出牌规则2：必须出大于上家的牌',
-//       '出牌规则3：如无法出牌则过牌',
-//       '当一轮中所有其他玩家都选择"过"时，最后出牌的玩家获得出牌权，可以自由选择任何牌型出牌',
-//       '强制出牌：玩家非首发，轮到玩家出牌时，玩家如果手上有大于上家的牌，必须出牌'
-//     ],
-//     cardTypes: {
-//       single: {
-//         description: '单牌从小到大排序',
-//         order: ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2', 'Small', 'Big']
-//       },
-//       pair: {
-//         description: '对子从小到大排序',
-//         order: ['33', '44', '55', '66', '77', '88', '99', '1010', 'JJ', 'QQ', 'KK', 'AA', '22']
-//       },
-//       consecutivePairs: {
-//         description: '连对的到小顺序是和单牌的一样的',
-//         examples: {
-//           valid: ['3344', '445566', '667788', '8899JJ', 'KKAA'],
-//           invalid: ['5566JJ', 'AA22', 'JJQQAA']
-//         }
-//       },
-//       threeWithOne: {
-//         description: '三带一：三张相同+一张单牌'
-//       },
-//       threeWithTwo: {
-//         description: '三带二：三张相同+对子'
-//       },
-//       planeWithWings: {
-//         description: '飞机带翅膀：两个或两个以上三张+同数量的单牌或对子',
-//         examples: {
-//           valid: ['44433365', '', '4443336655', 'KKKQQQJJJ654', 'AAAKKKQQQ6655'],
-//           invalid: ['444333655', 'KKKQQQJJJ6544']
-//         }
-//       },
-//       straight: {
-//         description: '顺子：五张或以上连续单牌',
-//         examples: {
-//           valid: ['34567', '678910', '910JQK', '10JQKA'],
-//           invalid: ['JQKA2', 'QKA23']
-//         }
-//       },
-//       bomb: {
-//         description: '炸弹：四相同的牌，或者大小王炸，大小王炸：small,big'
-//       }
-//     },
-//     specialRules: [
-//       '强制出牌：如有大于上家的牌必须出牌，不能过牌'
-//     ],
-//     winCondition: '最先出完所有手牌的玩家获胜',
-//     examples: [
-//       '如果A出了三个4，B必须出三个大于4的牌（如三个8），或者出炸弹。如果B没有三个大于4的牌或炸弹，则必须过牌。',
-//       '如果A出了对10，B必须出大于10的对子（如对J、对Q等），或者出炸弹。B不能出三个9或顺子等其他牌型。',
-//       '如果A出了顺子45678，B必须出更大的五张顺子（如56789或67890等），或者出炸弹。B不能出其他牌型或更短的顺子。'
-//     ]
-//   },
-//   responseFormat: '出牌:["A","A"],注意：格式为javascript字符串数组',
-//   initialHand: ['A', 'K', 'Q', 'Q', 'J', '10', '9', '9', '9', '8', '7', '6', '6', '5', '5', '3'],
-//   historyInfo: {
-//     description: '玩家出牌历史',
-//     history: []
-//   },
-//   lastPlayedCards: {
-//     description: '上个玩家的出牌',
-//     cards: {}
-//   },
-// };
-
 export default createStore({
   state: {
     gameState: 'START',
     players: [
-      { cards: [], selectedCards: [] },
-      { cards: [], selectedCards: [] },
-      { cards: [], selectedCards: [] }
+      new HumanPlayer(0),
+      new ProgramPlayer(1),
+      new ProgramPlayer(2),
     ],
     currentPlayer: 0,
     playedCards: [],
@@ -207,6 +120,7 @@ export default createStore({
     lastValidPlayPlayer: null, // 记录最后一个有效出牌的玩家
     currentRoundStartPlayer: null, // 记录当前小轮的首发玩家
     gameInfo: gameInfo,//给ai的信息
+    testMode: false,
   },
 
   mutations: {
@@ -215,7 +129,7 @@ export default createStore({
     },
     DEAL_CARDS(state, shuffledDeck) {
       state.players.forEach((player, index) => {
-        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(compareCards);
+        player.cards = shuffledDeck.slice(index * 18, (index + 1) * 18).sort(compareHandCards);
         player.selectedCards = [];
       });
       convertPlayerCardsToInitialHand(state);
@@ -235,27 +149,33 @@ export default createStore({
         }
       }
     },
-    PLAY_CARDS(state, playerIndex) {
+    PLAY_CARDS(state, { playerIndex, cards }) {
       const player = state.players[playerIndex];
-      if (player.selectedCards.length > 0 && validateCardPattern(player.selectedCards)) {
-        state.playedCards = [...player.selectedCards];
-        sortCards(state.playedCards);
-        state.lastPlayedCards = [...player.selectedCards];
-        state.lastPlayedType = getCardPatternType([...player.selectedCards]);
-        state.lastValidPlayPlayer = playerIndex;
-        player.cards = player.cards.filter(card => !card.selected);
-        player.selectedCards = [];
-        state.currentPlayer = (state.currentPlayer + 1) % 3;
-        state.passCount = 0;
-        //记录ai的信息
-        state.gameInfo.lastPlayedCards = convertCards(state.lastPlayedCards);
-        state.gameInfo.historyInfo.history.push(convertCards(state.lastPlayedCards));
+      try {
+        if (cards.length > 0 && validateCardPattern(cards)) {
+          state.playedCards = [...cards];
+          sortCards(state.playedCards);
+          state.lastPlayedCards = [...cards];
+          state.lastPlayedType = getCardPatternType([...cards]);
+          state.lastValidPlayPlayer = playerIndex;
+          player.cards = player.cards.filter(card => !cards.some(c => c.value === card.value && c.suit === card.suit));
+          player.selectedCards = [];
+          state.currentPlayer = (state.currentPlayer + 1) % 3;
+          state.passCount = 0;
+          //记录ai的信息
+          state.gameInfo.lastPlayedCards = convertCards(state.lastPlayedCards);
+          state.gameInfo.historyInfo.history.push(convertCards(state.lastPlayedCards));
 
-        // 如果其他两名玩家都没有牌，开始新的小轮
-        if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
-          state.players[(playerIndex + 2) % 3].cards.length === 0) {
-          state.currentRoundStartPlayer = playerIndex;
+          // 如果其他两名玩家都没有牌，开始新的小轮
+          if (state.players[(playerIndex + 1) % 3].cards.length === 0 &&
+            state.players[(playerIndex + 2) % 3].cards.length === 0) {
+            state.currentRoundStartPlayer = playerIndex;
+          }
         }
+      } catch (error) {
+        console.error(error);
+        // 在这里触发一个事件来显示错误消息
+        EventBus.emit('show-alert', error.message);
       }
     },
 
@@ -292,7 +212,19 @@ export default createStore({
       state.winner = null;
     },
     SORT_PLAYER_CARDS(state, playerIndex) {
-      state.players[playerIndex].cards.sort(compareCards);
+      state.players[playerIndex].cards.sort(comparePlayerCards);
+    },
+    SET_TEST_MODE(state, isTestMode) {
+      state.testMode = isTestMode;
+    },
+    SET_PLAYER_CARDS(state, { playerIndex, cards }) {
+      state.players[playerIndex].cards = cards;
+    },
+    SET_LAST_PLAYED_CARDS(state, cards) {
+      state.lastPlayedCards = cards;
+    },
+    SET_CURRENT_PLAYER(state, playerIndex) {
+      state.currentPlayer = playerIndex;
     },
   },
 
@@ -303,43 +235,87 @@ export default createStore({
       commit('DEAL_CARDS', deck);
       commit('SET_GAME_STATE', 'PLAYING');
     },
+    
     selectCard({ commit }, payload) {
       commit('SELECT_CARD', payload);
     },
-    playCards({ commit, state, dispatch }, playerIndex) {
-      const selectedCards = state.players[playerIndex].selectedCards;
+
+    playCards({ commit, state, dispatch }, { playerIndex, cards }) {
+      console.log(`Player index ${playerIndex} is playing cards.......`);
+
+      const player = state.players[playerIndex];
+      if (!player) {
+        console.error(`Player at index ${playerIndex} is undefined`);
+        return;
+      }
+
+      // 创建一个包含必要信息的 gameState 对象
+      const gameState = {
+        "你目前的手牌": player.cards.map(card => card.value),
+        "上家出牌": state.lastPlayedCards ? state.lastPlayedCards.map(card => card.value) : [],
+        "玩家出牌历史": state.gameInfo.historyInfo.history,
+        "上家牌型": state.lastPlayedType
+      };
+
+      const selectedCards = cards || player.selectedCards;
+      if (!selectedCards) {
+        console.error(`selectedCards for player ${playerIndex} is undefined`);
+        return;
+      }
+
       sortCards(selectedCards);
       console.log("开始出牌，牌的内容");
       console.log(selectedCards);
 
-      if (validateCardPattern(selectedCards)) {
-        if (!state.lastPlayedCards || isGreaterThanLastPlay(selectedCards, state.lastPlayedCards)) {
-          commit('PLAY_CARDS', playerIndex);
-          if (state.players[playerIndex].cards.length === 0) {
-            commit('SET_WINNER', playerIndex);
-          }
+      try {
+        // 如果是 AI 玩家，调用其 playCards 方法并传递 gameState
+        if (player.type === 'PROGRAM') {
+          const aiCards = player.playCards(state.lastPlayedCards, gameState);
+          // 使用 AI 返回的牌
+          commit('PLAY_CARDS', { playerIndex, cards: aiCards });
         } else {
-          dispatch('showAlert', '出的牌必须大于上家的牌！');
+          // 对于人类玩家，使用选中的牌
+          commit('PLAY_CARDS', { playerIndex, cards: selectedCards });
         }
-      } else {
-        dispatch('showAlert', '无效的牌型！');
+
+        if (player.cards.length === 0) {
+          commit('SET_WINNER', playerIndex);
+        }
+
+        // 在 action 结束时触发 turnEnd 事件
+        EventBus.emit('turnEnd');
+      } catch (error) {
+        console.error(error);
+        dispatch('showAlert', error.message);
       }
     },
+
+
     showAlert(context, message) {
       EventBus.emit('show-alert', message);
-
     },
     passPlay({ commit, state }) {
       if (state.lastPlayedCards === null) {
         throw new Error('第一个出牌的玩家不能过牌！');
       }
       commit('PASS_PLAY');
+
+      // 在 action 结束时触发 turnEnd 事件
+      EventBus.emit('turnEnd');
     },
     restartGame({ commit }) {
       commit('RESET_GAME');
     },
     sortPlayerCards({ commit }, playerIndex) {
       commit('SORT_PLAYER_CARDS', playerIndex);
+    },
+    setupTestScenario({ commit }, { player0Cards, player1Cards, player2Cards, lastPlayedCards, currentPlayer }) {
+      commit('SET_TEST_MODE', true);
+      commit('SET_PLAYER_CARDS', { playerIndex: 0, cards: player0Cards });
+      commit('SET_PLAYER_CARDS', { playerIndex: 1, cards: player1Cards });
+      commit('SET_PLAYER_CARDS', { playerIndex: 2, cards: player2Cards });
+      commit('SET_LAST_PLAYED_CARDS', lastPlayedCards);
+      commit('SET_CURRENT_PLAYER', currentPlayer);
     },
   },
 
@@ -366,6 +342,34 @@ export default createStore({
     canPlay: (state) => (playerIndex) => {
       const playerCards = state.players[playerIndex].cards;
       return playerCards.length > 0;
+    },
+    getRemainingCards: (state) => (playerIndex) => {
+      // 创建完整牌组
+      const fullDeck = createDeck();
+      
+      // 获取已知的牌（自己的手牌 + 所有已出的牌）
+      const knownCards = new Set();
+      
+      // 添加玩家手牌
+      state.players[playerIndex].cards.forEach(card => {
+        knownCards.add(`${card.suit}-${card.value}`);
+      });
+      
+      // 添加历史出牌记录中的牌
+      state.gameInfo.historyInfo.history.forEach(playedCards => {
+        if (Array.isArray(playedCards)) {
+          playedCards.forEach(value => {
+            // 因为历史记录只存了值，我们需要找到对应的完整卡牌
+            const matchingCards = fullDeck.filter(card => card.value === value);
+            matchingCards.forEach(card => {
+              knownCards.add(`${card.suit}-${card.value}`);
+            });
+          });
+        }
+      });
+      
+      // 返回不在已知牌中的所有牌
+      return fullDeck.filter(card => !knownCards.has(`${card.suit}-${card.value}`));
     }
   }
 });
